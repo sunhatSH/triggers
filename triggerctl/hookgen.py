@@ -15,20 +15,44 @@ from .model import discover
 from .roots import Root, all_roots
 
 
-def _now_line() -> str:
-    """Authoritative current time, pre-converted to the user's timezone.
-
-    机器时钟通常是 UTC 且常缺 tzdata，模型容易把 UTC 当本地时间。这里直接把换算好的
-    本地时间喂进去，模型做时间判断时不必（也不应）自己换算。偏移用 TRIGGERCTL_TZ_OFFSET（小时，默认 8=北京）。
-    """
+def _tz_offset() -> float:
     try:
-        off = float(os.environ.get("TRIGGERCTL_TZ_OFFSET", "8"))
+        return float(os.environ.get("TRIGGERCTL_TZ_OFFSET", "8"))
     except ValueError:
-        off = 8.0
-    now = datetime.now(timezone.utc) + timedelta(hours=off)
+        return 8.0
+
+
+def local_now() -> datetime:
+    """Current time converted to the user's timezone (machine clock is usually UTC)."""
+    return datetime.now(timezone.utc) + timedelta(hours=_tz_offset())
+
+
+def _now_line() -> str:
+    """Authoritative current time, pre-converted — so the model never misreads UTC as local."""
+    off = _tz_offset()
+    now = local_now()
     sign = "+" if off >= 0 else "-"
     return (f"当前时间：UTC{sign}{abs(off):g} {now:%Y-%m-%d %H:%M}（已为你换算；"
             f"做任何时间判断都用这个值，**不要**用机器 `date`，那是 UTC）。")
+
+
+def statusline(data: dict, now: Optional[datetime] = None) -> str:
+    """Deterministic status-line text (shown by Claude Code, not model-mediated).
+
+    Shows model · dir · local time, and a rest hint during 22:00–10:00.
+    """
+    now = now or local_now()
+    data = data or {}
+    model = (data.get("model") or {}).get("display_name") or ""
+    ws = data.get("workspace") or {}
+    cwd = ws.get("current_dir") or data.get("cwd") or ""
+    base = os.path.basename(str(cwd).rstrip("/")) if cwd else ""
+    parts = [p for p in (model, base, now.strftime("%H:%M")) if p]
+    line = " · ".join(parts)
+    h = now.hour
+    if h >= 22 or h < 10:
+        line += f"  🌙 该休息了（北京 {now:%H:%M}）"
+    return line
 
 
 def session_context(roots: Optional[List[Root]] = None) -> str:

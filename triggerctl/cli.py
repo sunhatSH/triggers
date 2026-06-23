@@ -66,9 +66,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--cron", action="store_true", help="打印 crontab 行")
     p.add_argument("--loop", action="store_true", help="生成 while+sleep 循环脚本")
     p.add_argument("--hook", action="store_true", help="把 session 触发器注入 hook 写进 settings.json")
+    p.add_argument("--statusline", action="store_true", help="把状态栏脚本写进 settings.json（确定性显示提醒）")
     p.add_argument("--interval", type=int, default=60, help="循环间隔秒（默认 60）")
 
     sub.add_parser("hook", help="输出 session 触发器上下文块（供 UserPromptSubmit hook 调用）")
+    sub.add_parser("statusline", help="输出状态栏文本（供 Claude Code statusLine 调用）")
 
     return ap
 
@@ -124,10 +126,13 @@ def main(argv=None) -> int:
     if c == "poll":
         return _cmd_poll(args.root, args.dry_run)
     if c == "install":
-        mode = "hook" if args.hook else "cron" if args.cron else "loop"
+        mode = ("hook" if args.hook else "statusline" if args.statusline
+                else "cron" if args.cron else "loop")
         return commands.cmd_install(args.root, mode, args.interval)
     if c == "hook":
         return commands.cmd_hook()
+    if c == "statusline":
+        return commands.cmd_statusline()
     return 2
 
 

@@ -51,8 +51,11 @@ mkdir -p "$CLAUDE_DIR/skills/triggerctl"
 cp "$REPO_DIR/skill/SKILL.md" "$CLAUDE_DIR/skills/triggerctl/SKILL.md"
 echo "    -> $CLAUDE_DIR/skills/triggerctl/SKILL.md"
 
-echo "==> 4/4 安装 UserPromptSubmit 注入 hook (settings.json)"
+echo "==> 4/5 安装 UserPromptSubmit 注入 hook (settings.json)"
 "$TCTL" install --hook
+
+echo "==> 5/5 安装状态栏（确定性显示时间/提醒，不依赖模型）"
+"$TCTL" install --statusline
 
 cat <<EOF
 

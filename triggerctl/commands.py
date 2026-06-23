@@ -232,6 +232,46 @@ def cmd_hook() -> int:
     return 0
 
 
+def cmd_statusline() -> int:
+    """Print the deterministic status line (Claude Code statusLine command)."""
+    import json
+    from . import hookgen
+    raw = ""
+    try:
+        if not sys.stdin.isatty():
+            raw = sys.stdin.read()
+    except Exception:
+        raw = ""
+    try:
+        data = json.loads(raw) if raw.strip() else {}
+    except Exception:
+        data = {}
+    print(hookgen.statusline(data))
+    return 0
+
+
+def cmd_install_statusline() -> int:
+    import json
+    from pathlib import Path
+    settings = Path.home() / ".claude" / "settings.json"
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    data = {}
+    if settings.exists():
+        try:
+            data = json.loads(settings.read_text(encoding="utf-8"))
+        except Exception as e:  # noqa: BLE001
+            print(f"读取 {settings} 失败: {e}", file=sys.stderr)
+            return 1
+        settings.with_suffix(".json.triggerctl.bak").write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    data["statusLine"] = {"type": "command", "command": f"{_triggerctl_cmd()} statusline", "padding": 0}
+    settings.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"已写入 statusLine 到 {settings}")
+    print(f"  命令: {data['statusLine']['command']}")
+    print("注意：仅对**新启动**的会话生效。")
+    return 0
+
+
 def _triggerctl_cmd() -> str:
     """A robust way to invoke triggerctl from a hook (PATH may be minimal)."""
     import shutil
@@ -275,6 +315,8 @@ def cmd_install_hook() -> int:
 def cmd_install(selector: Optional[str], mode: str, interval: int) -> int:
     if mode == "hook":
         return cmd_install_hook()
+    if mode == "statusline":
+        return cmd_install_statusline()
     root = primary(selector)
     root.path.mkdir(parents=True, exist_ok=True)
     py = sys.executable
