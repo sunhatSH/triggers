@@ -223,7 +223,58 @@ def cmd_status(selector: Optional[str], limit: int) -> int:
     return 0
 
 
+def cmd_hook() -> int:
+    """Print the session-trigger context block (used by the UserPromptSubmit hook)."""
+    from . import hookgen
+    block = hookgen.session_context()
+    if block:
+        print(block)
+    return 0
+
+
+def _triggerctl_cmd() -> str:
+    """A robust way to invoke triggerctl from a hook (PATH may be minimal)."""
+    import shutil
+    return shutil.which("triggerctl") or f"{sys.executable} -m triggerctl"
+
+
+def cmd_install_hook() -> int:
+    """Merge a UserPromptSubmit hook into ~/.claude/settings.json so session triggers
+    are injected into every prompt's context."""
+    import json
+    from pathlib import Path
+    settings = Path.home() / ".claude" / "settings.json"
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    data = {}
+    if settings.exists():
+        try:
+            data = json.loads(settings.read_text(encoding="utf-8"))
+        except Exception as e:  # noqa: BLE001
+            print(f"读取 {settings} 失败: {e}", file=sys.stderr)
+            return 1
+        # back up before touching
+        bak = settings.with_suffix(".json.triggerctl.bak")
+        bak.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    cmd = f"{_triggerctl_cmd()} hook"
+    hooks = data.setdefault("hooks", {})
+    ups = hooks.setdefault("UserPromptSubmit", [])
+    # idempotent: skip if our hook is already there
+    for group in ups:
+        for h in group.get("hooks", []):
+            if "triggerctl hook" in h.get("command", "") or h.get("command") == cmd:
+                print("UserPromptSubmit hook 已存在，跳过。")
+                return 0
+    ups.append({"hooks": [{"type": "command", "command": cmd}]})
+    settings.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"已写入 UserPromptSubmit hook 到 {settings}")
+    print(f"  命令: {cmd}")
+    print("注意：仅对**新启动**的会话生效。")
+    return 0
+
+
 def cmd_install(selector: Optional[str], mode: str, interval: int) -> int:
+    if mode == "hook":
+        return cmd_install_hook()
     root = primary(selector)
     root.path.mkdir(parents=True, exist_ok=True)
     py = sys.executable

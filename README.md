@@ -21,18 +21,22 @@ git clone git@github.com:sunhatSH/triggers.git
 git clone https://github.com/sunhatSH/triggers.git
 ```
 
-## 安装
+## 安装（一键，推荐）
 
 ```bash
-cd triggers && pip install -e .
-# 装好后用 `triggerctl ...`（控制台命令）。注意：若默认 python3 非本环境，
-# 用 `python -m triggerctl` 时要确保用的是装了本包的解释器。
+cd triggers && bash install.sh
 ```
+
+把触发器能力嵌入 Claude Code：装 `triggerctl` 到 PATH → 初始化用户级触发器根（含护栏）→ 安装 `triggerctl` skill → 写入 UserPromptSubmit 注入 hook。**装完新开一个 `claude` 会话**才生效。
+
+仅装库：`pip install -e .`（之后用 `triggerctl`；别用 `python -m triggerctl` 除非确认解释器装了本包）。
 
 ## 文档 / 示例
 
+- **使用说明（含常见问题/排错）**：[USAGE.md](USAGE.md)
 - 设计与取舍（为什么两层、延迟 vs 成本、事件型边界等）：[docs/design.md](docs/design.md)
 - 各类型触发器模板：[examples/](examples/)
+- 给 Claude 的 skill：[skill/SKILL.md](skill/SKILL.md)
 
 ## 触发器文件格式
 
