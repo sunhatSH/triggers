@@ -23,7 +23,8 @@ def test_session_trigger_in_context(tmp_path, monkeypatch):
     block = hookgen.session_context([root])
     assert "feat" in block
     assert "完成一个特性时" in block
-    assert "[触发器系统]" in block
+    assert "触发器系统" in block
+    assert "当前时间" in block  # 注入了换算后的当前时间
 
 
 def test_disabled_session_excluded(tmp_path, monkeypatch):

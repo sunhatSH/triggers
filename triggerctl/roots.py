@@ -32,6 +32,12 @@ class Root:
     def index_file(self) -> Path:
         return self.path / "TRIGGERS.md"
 
+    @property
+    def claude_md(self) -> Path:
+        """The CLAUDE.md this root feeds into: user -> ~/.claude/CLAUDE.md,
+        project -> <project>/CLAUDE.md."""
+        return self.path.parent / "CLAUDE.md"
+
     def __str__(self) -> str:
         return f"{self.kind}:{self.path}"
 

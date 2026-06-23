@@ -74,9 +74,60 @@ def render(root: Root, triggers: List[Trigger]) -> str:
     return "\n".join(lines)
 
 
+CLAUDE_START = "<!-- triggerctl:session-triggers:start (自动生成, 勿手改本块) -->"
+CLAUDE_END = "<!-- triggerctl:session-triggers:end -->"
+
+
+def _first_action(body: str) -> str:
+    for line in body.splitlines():
+        s = line.strip()
+        if not s or s.startswith("#") or s.startswith(">"):
+            continue
+        return s[:100] + ("…" if len(s) > 100 else "")
+    return "（见对应文件）"
+
+
+def render_session_block(triggers: List[Trigger]) -> str:
+    sess = [t for t in triggers if t.enabled and t.is_session]
+    lines = [
+        CLAUDE_START,
+        "## ⚡ 生效中的触发器（最高优先级 · 由 `triggerctl sync` 自动生成）",
+        "",
+        "处理**每一条**用户消息前，先逐条判断下列条件；**凡满足的，在你回复的最开头先输出**",
+        "`[触发器: <名称>] <动作/提醒>`，然后再正常回答用户（除非用户明确要求只输出特定内容）。",
+        "> 时间判断一律用「触发器系统」每轮注入的换算后时间，**不要**用机器 `date`（那是 UTC）。",
+        "",
+    ]
+    if not sess:
+        lines.append("（当前无启用的 session 触发器）")
+    for t in sess:
+        lines.append(f"- **{t.name}** — 当 {(t.when or '').strip()}：{_first_action(t.body)}（细节 `{t.rel_path}`）")
+    lines += ["", CLAUDE_END]
+    return "\n".join(lines)
+
+
+def update_claude_md(root: Root, triggers: List[Trigger]) -> None:
+    """Insert/replace the managed session-trigger block in this root's CLAUDE.md."""
+    path = root.claude_md
+    block = render_session_block(triggers)
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
+    if CLAUDE_START in text and CLAUDE_END in text:
+        pre = text.split(CLAUDE_START)[0].rstrip("\n")
+        post = text.split(CLAUDE_END, 1)[1].lstrip("\n")
+        new = (pre + "\n\n" + block + ("\n\n" + post if post else "\n")).rstrip("\n") + "\n"
+    elif text:
+        new = text.rstrip("\n") + "\n\n" + block + "\n"
+    else:
+        new = "# 指引\n\n" + block + "\n"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(new, encoding="utf-8")
+
+
 def sync(root: Root) -> int:
-    """Regenerate TRIGGERS.md for a root. Returns number of triggers indexed."""
+    """Regenerate TRIGGERS.md for a root and refresh its CLAUDE.md managed block.
+    Returns number of triggers indexed."""
     triggers = discover(root)
     root.path.mkdir(parents=True, exist_ok=True)
     root.index_file.write_text(render(root, triggers), encoding="utf-8")
+    update_claude_md(root, triggers)
     return len(triggers)

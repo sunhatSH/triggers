@@ -82,6 +82,16 @@ def test_init_seeds_locked_guardrail(tmp_path, monkeypatch):
     assert t is not None and t.locked and t.kind == "session"
 
 
+def test_sync_writes_claude_block(tmp_path, monkeypatch):
+    root = _root(tmp_path)
+    monkeypatch.setattr(commands, "primary", lambda sel: root)
+    commands.cmd_add("feat", None, None, None, None, None, None,
+                     None, None, "完成一个特性时", False, False)  # add() syncs
+    cm = root.claude_md.read_text()
+    assert "triggerctl:session-triggers:start" in cm
+    assert "feat" in cm and "完成一个特性时" in cm
+
+
 def test_runlog_dedup(tmp_path):
     root = _root(tmp_path)
     root.state_dir.mkdir(parents=True, exist_ok=True)
