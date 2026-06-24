@@ -497,6 +497,8 @@ def cmd_statusline() -> int:
 def cmd_install_statusline() -> int:
     import json
     from pathlib import Path
+
+    # ── Claude Code: write statusLine to settings.json ──────────────
     settings = Path.home() / ".claude" / "settings.json"
     settings.parent.mkdir(parents=True, exist_ok=True)
     data = {}
@@ -512,7 +514,14 @@ def cmd_install_statusline() -> int:
     settings.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"已写入 statusLine 到 {settings}")
     print(f"  命令: {data['statusLine']['command']}")
-    print("注意：仅对**新启动**的会话生效。")
+    print("注意：仅对**新启动**的 Claude 会话生效。")
+
+    # ── Hermes TUI: patch cli.py ────────────────────────────────────
+    from . import hermes
+    cli = hermes.install_statusline_cli_py()
+    if cli:
+        print(f"已 patch Hermes TUI status bar → {cli}")
+        print("  (重启 Hermes TUI 后生效)")
     return 0
 
 

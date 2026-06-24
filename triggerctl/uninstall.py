@@ -178,6 +178,11 @@ def uninstall_hermes(rep: UninstallReport) -> None:
     _remove_file(hermes.agent_hooks_dir() / "triggerctl-pre-llm.sh", rep)
     _rmtree(hermes.skill_path().parent, rep)
 
+    # Revert cli.py status bar patch if backup exists
+    cli_restored = hermes.uninstall_statusline_cli_py()
+    if cli_restored:
+        rep.note_removed(f"restored Hermes cli.py from backup (triggerctl statusline)")
+
 
 def uninstall_codex(rep: UninstallReport) -> None:
     path, data = codex.load_hooks()
