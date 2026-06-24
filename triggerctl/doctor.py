@@ -129,16 +129,26 @@ def run(start: Optional[Path] = None) -> Report:
             rep.add(
                 "Hermes pre_llm_call hook",
                 "warn",
-                "Hermes found but hook missing → triggerctl install --hermes-hook",
+                "Hermes found but hook missing → triggerctl install --hermes",
             )
         else:
             rep.add(
                 "Hermes pre_llm_call hook",
                 "info",
-                "optional → triggerctl install --hermes-hook (Hermes Agent)",
+                "optional → triggerctl install --hermes (Hermes Agent)",
             )
     except Exception as exc:  # noqa: BLE001
         rep.add("Hermes pre_llm_call hook", "warn", f"could not read Hermes config: {exc}")
+
+    if shutil.which("hermes"):
+        if hermes_mod.skill_installed():
+            rep.add("Hermes triggerctl skill", "ok", str(hermes_mod.skill_path()))
+        else:
+            rep.add(
+                "Hermes triggerctl skill",
+                "info",
+                "optional → triggerctl install --hermes",
+            )
 
     env = data.get("env") or {}
     if str(env.get("TRIGGERCTL_HOOK_REPLACE", "")).lower() in ("1", "true", "yes"):

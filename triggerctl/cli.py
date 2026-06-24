@@ -73,9 +73,31 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--cron", action="store_true", help="打印 crontab 行")
     p.add_argument("--loop", action="store_true", help="生成 while+sleep 循环脚本")
     p.add_argument("--hook", action="store_true", help="Claude Code UserPromptSubmit hook → settings.json")
-    p.add_argument("--hermes-hook", action="store_true", help="Hermes pre_llm_call hook → ~/.hermes/config.yaml")
+    p.add_argument("--hermes-hook", action="store_true", help="Hermes pre_llm_call hook only")
+    p.add_argument("--hermes", action="store_true", help="Full Hermes setup: hook + skill + hooks_auto_accept")
     p.add_argument("--statusline", action="store_true", help="Claude Code statusLine (rest / too-many warnings)")
     p.add_argument("--interval", type=int, default=60, help="循环间隔秒（默认 60）")
+
+    p = sub.add_parser("uninstall", help="Remove hooks/skills and trigger registry data")
+    _add_root_arg(p)
+    p.add_argument(
+        "--agent",
+        choices=("claude", "hermes", "all"),
+        default="all",
+        help="Which agent integration to remove (default: all)",
+    )
+    p.add_argument("--yes", "-y", action="store_true", help="Confirm destructive trigger deletion")
+    p.add_argument("--dry-run", action="store_true", help="Preview without making changes")
+    p.add_argument(
+        "--keep-triggers",
+        action="store_true",
+        help="Remove hooks/skills only; keep user/project/system trigger files",
+    )
+    p.add_argument(
+        "--triggers-only",
+        action="store_true",
+        help="Remove trigger data only; keep Claude/Hermes hooks and skills",
+    )
 
     sub.add_parser("hook", help="Session trigger block (Claude Code UserPromptSubmit)")
     sub.add_parser("hermes-hook", help="Session trigger JSON (Hermes pre_llm_call)")
@@ -154,12 +176,22 @@ def main(argv=None) -> int:
     if c == "install":
         mode = (
             "hook" if args.hook
+            else "hermes" if args.hermes
             else "hermes-hook" if args.hermes_hook
             else "statusline" if args.statusline
             else "cron" if args.cron
             else "loop"
         )
         return commands.cmd_install(args.root, mode, args.interval)
+    if c == "uninstall":
+        return commands.cmd_uninstall(
+            args.root,
+            agents=args.agent,
+            yes=args.yes,
+            dry_run=args.dry_run,
+            keep_triggers=args.keep_triggers,
+            triggers_only=args.triggers_only,
+        )
     if c == "hook":
         return commands.cmd_hook()
     if c == "hermes-hook":

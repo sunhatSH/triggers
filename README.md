@@ -9,7 +9,7 @@ of truth, generated index, multiple registry roots).
 
 - **Two layers** (latency vs cost):
   - **Detection** (cheap Python, no model): evaluates `schedule` + `probe`, dedups via run-log.
-  - **Execution** (model): calls `claude -p` only for DUE triggers.
+  - **Execution** (model): calls `claude -p` or `hermes chat -q` only for DUE triggers.
 - **Types inferred from frontmatter**: `schedule` only → time; `probe` only → event;
   both → AND combo; `when` only (no schedule/probe) → semantic session (hook).
 - **Source of truth** = each trigger `.md` file; `TRIGGERS.md` is an **ops index**
@@ -25,9 +25,13 @@ of truth, generated index, multiple registry roots).
 cd triggers && bash install.sh
 ```
 
-Installs `triggerctl` on PATH, initializes the user registry, installs the skill,
-and writes the UserPromptSubmit hook + statusLine. **Start a new Claude session**
-after install.
+Installs `triggerctl` on PATH, initializes the user registry, and configures Claude Code
+and Hermes Agent (default `AGENT=all`). **Start a new session** after install.
+
+```bash
+AGENT=claude bash install.sh   # Claude only
+AGENT=hermes bash install.sh   # Hermes only
+```
 
 If `pip` is missing, `install.sh` uses `/opt/conda/bin/python3 -m pip`.
 
@@ -48,7 +52,8 @@ See [docs/proposals/user-prompt-submit-replacement-context.md](docs/proposals/us
 ### Hermes Agent
 
 ```bash
-triggerctl install --hermes-hook   # ~/.hermes/config.yaml → pre_llm_call
+triggerctl install --hermes        # hook + skill + hooks_auto_accept
+triggerctl install --hermes-hook   # hook only
 ```
 
 See [docs/hermes.md](docs/hermes.md).
@@ -85,10 +90,13 @@ See [docs/hermes.md](docs/hermes.md).
 | `triggerctl sync` | Regenerate TRIGGERS.md ops index |
 | `triggerctl detect` / `poll` | Detection / execution |
 | `triggerctl install --hook` | Claude Code UserPromptSubmit injection |
-| `triggerctl install --hermes-hook` | Hermes pre_llm_call injection |
+| `triggerctl install --hermes` | Full Hermes setup (hook + skill) |
+| `triggerctl install --hermes-hook` | Hermes pre_llm_call hook only |
 | `triggerctl hermes-hook` | Hermes hook entrypoint (JSON `context`) |
 | `triggerctl install --statusline` | Status bar |
 | `triggerctl install --loop` | Background poll loop |
+| `triggerctl uninstall [--yes]` | Remove hooks/skills + user/project/system triggers |
+| `bash uninstall.sh` | Same as `uninstall --root all --yes` |
 
 ## Tests
 

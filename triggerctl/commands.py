@@ -371,9 +371,25 @@ def cmd_install_hermes_hook() -> int:
 
     path = hermes.install_pre_llm_hook(_triggerctl_cmd())
     print(f"Wrote Hermes pre_llm_call hook to {path}")
-    print(f"  command: {_triggerctl_cmd()} hermes-hook")
-    print("Note: approve the hook on first run, or set HERMES_ACCEPT_HOOKS=1 / hooks_auto_accept: true")
-    print("      Run `hermes hooks doctor` to verify.")
+    print(f"  wrapper: {hermes.agent_hooks_dir() / 'triggerctl-pre-llm.sh'}")
+    print("Note: hooks_auto_accept enabled if unset. Run `hermes hooks doctor` to verify.")
+    return 0
+
+
+def cmd_install_hermes() -> int:
+    """Full Hermes setup: hook + skill (parity with Claude install.sh Hermes path)."""
+    from . import hermes
+
+    try:
+        result = hermes.install_full(_triggerctl_cmd())
+    except FileNotFoundError as exc:
+        print(f"Install failed: {exc}", file=sys.stderr)
+        return 1
+    print(f"Wrote Hermes pre_llm_call hook to {result['config']}")
+    print(f"  wrapper: {result['wrapper']}")
+    print(f"Installed skill → {result['skill']}")
+    print("Note: start a new Hermes session. Poll uses `hermes chat -q` when TRIGGERCTL_AGENT=hermes")
+    print("      or when only Hermes is on PATH. Shared registry: ~/.claude/triggers/ + <project>/triggers/")
     return 0
 
 
@@ -412,9 +428,67 @@ def cmd_install_hook() -> int:
     return 0
 
 
+def cmd_uninstall(
+    selector: Optional[str],
+    *,
+    agents: str,
+    yes: bool,
+    dry_run: bool,
+    keep_triggers: bool,
+    triggers_only: bool,
+) -> int:
+    """Remove integration and/or all trigger registry data (user, project, system-triggers)."""
+    from . import uninstall as uninstall_mod
+    from .roots import resolve
+
+    if keep_triggers and triggers_only:
+        print("Cannot use --keep-triggers with --triggers-only.", file=sys.stderr)
+        return 2
+
+    if triggers_only:
+        remove_triggers, remove_integration = True, False
+    elif keep_triggers:
+        remove_triggers, remove_integration = False, True
+    else:
+        remove_triggers, remove_integration = True, True
+
+    roots = resolve(selector or "all")
+    if remove_triggers and not yes and not dry_run:
+        print("This will permanently delete trigger data:", file=sys.stderr)
+        for root in uninstall_mod._unique_roots(roots):
+            print(f"  - {root.kind}: {root.path} (includes system-triggers/)", file=sys.stderr)
+        print("\nRe-run with --yes to confirm, or --dry-run to preview.", file=sys.stderr)
+        return 1
+
+    rep = uninstall_mod.run_uninstall(
+        roots=roots,
+        agents=agents,
+        remove_triggers=remove_triggers,
+        remove_integration=remove_integration,
+        dry_run=dry_run,
+    )
+
+    for line in rep.removed:
+        print(line)
+    for line in rep.skipped:
+        print(f"skip: {line}")
+
+    if not rep.removed and not rep.skipped:
+        print("Nothing to uninstall.")
+    elif dry_run:
+        print("\n(dry-run — no changes made)")
+    else:
+        print("\nDone. Start a new Claude/Hermes session if hooks were removed.")
+        if remove_integration:
+            print("To remove the Python package: python3 -m pip uninstall triggerctl")
+    return 0
+
+
 def cmd_install(selector: Optional[str], mode: str, interval: int) -> int:
     if mode == "hook":
         return cmd_install_hook()
+    if mode == "hermes":
+        return cmd_install_hermes()
     if mode == "hermes-hook":
         return cmd_install_hermes_hook()
     if mode == "statusline":
