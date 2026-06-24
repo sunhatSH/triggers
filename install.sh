@@ -52,7 +52,21 @@ fi
 echo "==> Install triggerctl ($PY -m pip install -e)"
 echo "    Python: $PY"
 echo "    AGENT: $AGENT"
-"$PY" -m pip install -e "$REPO_DIR" -q
+# macOS CLT Python often ships pip 21.x, which cannot do pyproject-only editable installs.
+"$PY" -m pip install --upgrade pip setuptools wheel -q
+if ! "$PY" -m pip install -e "$REPO_DIR" -q; then
+  cat >&2 <<EOF
+!! pip editable install failed.
+
+Try upgrading pip manually, then re-run install.sh:
+  $PY -m pip install --upgrade pip setuptools wheel
+  $PY -m pip install -e "$REPO_DIR"
+
+Or point at a newer Python (3.10+ recommended):
+  PYTHON=/path/to/python3 bash install.sh
+EOF
+  exit 1
+fi
 
 TCTL="$("$PY" - <<'EOF'
 import shutil, sys, os
