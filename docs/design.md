@@ -30,7 +30,7 @@ model, see [archive/design-v1-zh.md](archive/design-v1-zh.md).
 ```
 triggerctl/          # Python package + CLI
 skill/               # Agent skill (installed to ~/.claude/skills/triggerctl/)
-catalog/             # Optional templates (session/ + poll/)
+library/             # Optional trigger library (manifest.yaml; not auto-installed)
 docs/                # This tree
 tests/               # pytest + tests/manual/
 install.sh           # pip -e, init, hooks, skill copy

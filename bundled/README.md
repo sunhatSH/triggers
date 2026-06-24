@@ -1,13 +1,5 @@
-# Moved → `catalog/`
+# Moved → `library/`
 
-Templates previously under `bundled/` and `examples/` now live in **[../catalog/](../catalog/)**:
+Use **`triggerctl library list`** and **`triggerctl library install <name>`**.
 
-- Session: `catalog/session/`
-- Time/event/combo: `catalog/poll/`
-
-```bash
-triggerctl add --from ./catalog/session/auto-commit-push.md --root user
-triggerctl add --from ./catalog/poll/daily-backup.md --root user
-```
-
-See [../catalog/README.md](../catalog/README.md) for the full index.
+See [../library/README.md](../library/README.md).

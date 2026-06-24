@@ -89,7 +89,8 @@ def cmd_init(selector: Optional[str]) -> int:
     (root.state_dir / "run-log.jsonl").touch(exist_ok=True)
     if root.kind == "user" and _seed_defaults(root):
         print(f"Seeded default guardrail trigger: {WARN_NAME} (locked)")
-        print("Optional templates: triggerctl add --from ./catalog/<session|poll>/<name>.md --root user")
+        print("Optional library (not installed): triggerctl library list")
+        print("  Install: triggerctl library install rest-reminder")
     elif root.kind == "user" and _refresh_guardrail_if_stale(root):
         print(f"Updated stale guardrail trigger: {WARN_NAME} (>5 threshold)")
     n = registry.sync(root)
@@ -97,6 +98,67 @@ def cmd_init(selector: Optional[str]) -> int:
     print(f"Ops index: {root.index_file}")
     if root.kind == "project":
         print(f"Project CLAUDE.md: {root.claude_md}")
+    return 0
+
+
+def cmd_library_list(source: Optional[str]) -> int:
+    from . import library as lib
+
+    try:
+        entries = lib.list_entries(source)
+    except Exception as e:  # noqa: BLE001
+        print(f"错误：{e}", file=sys.stderr)
+        return 2
+    if not entries:
+        print("（库中无触发器）")
+        return 0
+    src = source or lib.default_source()
+    print(f"Library: {src}  ({len(entries)} trigger(s), not installed until you run library install)\n")
+    rows = [
+        [
+            e.name,
+            e.kind,
+            e.category,
+            "yes" if e.inject else "no",
+            e.description or e.path,
+        ]
+        for e in entries
+    ]
+    _print_table(rows, ["名称", "类型", "分组", "inject", "说明"])
+    print("\nInstall: triggerctl library install <name>   or   triggerctl library install --all")
+    return 0
+
+
+def cmd_library_install(
+    names: List[str],
+    selector: Optional[str],
+    force: bool,
+    install_all: bool,
+    source: Optional[str],
+) -> int:
+    from . import library as lib
+
+    try:
+        if install_all:
+            result = lib.install_all(selector, force, source)
+        else:
+            if not names:
+                print("请指定触发器名称，或使用 --all", file=sys.stderr)
+                return 2
+            result = lib.install_names(names, selector, force, source)
+    except Exception as e:  # noqa: BLE001
+        print(f"错误：{e}", file=sys.stderr)
+        return 2
+
+    for name in result.installed:
+        print(f"已安装 {name}")
+    for name in result.skipped:
+        print(f"跳过 {name}（已存在，加 --force 覆盖）")
+    for err in result.errors:
+        print(f"错误：{err}", file=sys.stderr)
+    if not result.installed and not result.skipped:
+        print("未安装任何触发器", file=sys.stderr)
+        return 1
     return 0
 
 

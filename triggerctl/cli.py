@@ -116,6 +116,27 @@ def build_parser() -> argparse.ArgumentParser:
     _add_root_arg(p)
     p.add_argument("--probe-test", action="store_true", help="试跑 probe/dedup_cmd（应只读）")
 
+    lib = sub.add_parser("library", help="官方触发器库：列举 / 远程安装（默认不自动安装）")
+    lib_sub = lib.add_subparsers(dest="library_cmd", required=True)
+
+    p = lib_sub.add_parser("list", help="列出库中可选触发器（不安装）")
+    p.add_argument(
+        "--source",
+        metavar="SOURCE",
+        help="库位置（默认 sunhatSH/triggers/library 或本地 ./library）",
+    )
+
+    p = lib_sub.add_parser("install", help="按名称从库安装触发器")
+    p.add_argument("names", nargs="*", help="触发器名称（manifest 中的 name）")
+    _add_root_arg(p)
+    p.add_argument(
+        "--source",
+        metavar="SOURCE",
+        help="库位置（默认 sunhatSH/triggers/library 或本地 ./library）",
+    )
+    p.add_argument("--all", dest="install_all", action="store_true", help="安装库中全部触发器")
+    p.add_argument("--force", action="store_true", help="覆盖同名已安装触发器")
+
     return ap
 
 
@@ -205,6 +226,13 @@ def main(argv=None) -> int:
         return commands.cmd_codex_hook()
     if c == "statusline":
         return commands.cmd_statusline()
+    if c == "library":
+        if args.library_cmd == "list":
+            return commands.cmd_library_list(args.source)
+        if args.library_cmd == "install":
+            return commands.cmd_library_install(
+                args.names, args.root, args.force, args.install_all, args.source
+            )
     return 2
 
 

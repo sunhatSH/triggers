@@ -1,0 +1,46 @@
+version: 1
+id: triggerctl-official
+description: Official optional triggers shipped with triggerctl (never auto-installed on init)
+
+triggers:
+  - name: rest-reminder
+    path: session/rest-reminder.md
+    kind: session
+    category: wellbeing
+    inject: false
+    description: Rest window hints via statusLine (22:00–10:00 local, UTC+8 default)
+
+  - name: auto-commit-push
+    path: session/auto-commit-push.md
+    kind: session
+    category: git
+    inject: true
+    description: Commit or push when a feature is complete (session hook)
+
+  - name: commit-on-feature
+    path: session/commit-on-feature.md
+    kind: session
+    category: git
+    inject: true
+    description: Commit when feature work is done (Chinese when-condition template)
+
+  - name: daily-backup
+    path: poll/daily-backup.md
+    kind: time
+    category: ops
+    inject: false
+    description: Daily backup at 02:00 (requires triggerctl poll / loop)
+
+  - name: on-train-done
+    path: poll/on-train-done.md
+    kind: event
+    category: watch
+    inject: false
+    description: Fire when a done.flag file appears (poll probe)
+
+  - name: gated-nightly
+    path: poll/gated-nightly.md
+    kind: combo
+    category: ops
+    inject: false
+    description: Nightly job when schedule AND probe both succeed (AND)

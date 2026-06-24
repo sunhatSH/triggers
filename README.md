@@ -18,7 +18,7 @@ of truth, generated index, multiple registry roots).
   - User: `~/.claude/triggers/`
   - Project: `<project>/triggers/`
 - **Idempotency**: `.state/run-log.jsonl` keyed by `(name, key)`.
-- **Optional templates**: `catalog/` (`session/` + `poll/`); `init` seeds only the locked guardrail.
+- **Optional library**: `library/` ships templates; `init` seeds only the locked guardrail. List/install with `triggerctl library`.
 - **>5 warning**: counts **hook-eligible** session triggers only (`in_context`), not time/event or `inject: false`.
 
 ## Project layout
@@ -27,9 +27,11 @@ of truth, generated index, multiple registry roots).
 triggerctl/              # repo root (GitHub: sunhatSH/triggers)
 ├── triggerctl/          # Python package + CLI
 ├── skill/               # agent skill (installed on setup)
-├── catalog/             # optional templates
+├── library/             # optional trigger library (manifest + templates)
+│   ├── manifest.yaml    # index for `triggerctl library list`
 │   ├── session/         # semantic session (hook)
 │   └── poll/            # time / event / combo
+├── catalog/             # redirect → library/
 ├── docs/                # design, integrations, proposals, admin
 ├── tests/               # pytest; tests/manual/ for harnesses
 ├── install.sh           # pip -e, init, hooks, skill
@@ -42,6 +44,13 @@ triggerctl/              # repo root (GitHub: sunhatSH/triggers)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sunhatSH/triggers/main/install-remote.sh | bash
+```
+
+Then browse the built-in library (not auto-installed):
+
+```bash
+triggerctl library list
+triggerctl library install rest-reminder auto-commit-push
 ```
 
 Clones to `~/.local/share/triggerctl/repo` and runs `install.sh`. Options:
@@ -118,13 +127,15 @@ See [docs/integrations/codex.md](docs/integrations/codex.md).
 - [USAGE.md](USAGE.md) — usage and troubleshooting
 - [docs/README.md](docs/README.md) — documentation index
 - [docs/design.md](docs/design.md) — architecture
-- [catalog/README.md](catalog/README.md) — optional templates
+- [library/README.md](library/README.md) — optional trigger library
 - [skill/SKILL.md](skill/SKILL.md) — agent skill
 
 ## Commands
 
 | Command | Purpose |
 |---|---|
+| `triggerctl library list` | List optional triggers in the official library (remote) |
+| `triggerctl library install <name>` | Install trigger(s) from the library by name |
 | `triggerctl init [--root user\|project]` | Initialize registry root |
 | `triggerctl add <name> [--every \| --probe \| --when]` | Register trigger |
 | `triggerctl add --from <SOURCE> [--list]` | Install from Git/local |

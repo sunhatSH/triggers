@@ -47,6 +47,8 @@ triggerctl add auto-commit --root user --when 'when a feature is complete: small
 
 ```bash
 triggerctl list [--root all]
+triggerctl library list
+triggerctl library install <name> [--all]
 triggerctl enable/disable <name>
 triggerctl remove <name>
 triggerctl add --from <SOURCE> [--list]

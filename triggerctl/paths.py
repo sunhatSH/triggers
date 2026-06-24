@@ -12,5 +12,10 @@ def skill_source() -> Path:
     return repo_root() / "skill" / "SKILL.md"
 
 
+def library_dir() -> Path:
+    return repo_root() / "library"
+
+
 def catalog_dir() -> Path:
-    return repo_root() / "catalog"
+    """Deprecated alias for library_dir()."""
+    return library_dir()
