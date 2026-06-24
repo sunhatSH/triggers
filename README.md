@@ -1,6 +1,6 @@
 # triggerctl
 
-Triggers for Claude Code and Hermes Agent — run commands or prompts on a schedule, when a probe
+Triggers for Claude Code, Hermes Agent, and Codex CLI — run commands or prompts on a schedule, when a probe
 succeeds, or when a semantic session condition matches. Inspired by
 [vercel-labs/skills](https://github.com/vercel-labs/skills) (frontmatter as source
 of truth, generated index, multiple registry roots).
@@ -9,7 +9,7 @@ of truth, generated index, multiple registry roots).
 
 - **Two layers** (latency vs cost):
   - **Detection** (cheap Python, no model): evaluates `schedule` + `probe`, dedups via run-log.
-  - **Execution** (model): calls `claude -p` or `hermes chat -q` only for DUE triggers.
+  - **Execution** (model): calls `claude -p`, `hermes chat -q`, or `codex exec` only for DUE triggers.
 - **Types inferred from frontmatter**: `schedule` only → time; `probe` only → event;
   both → AND combo; `when` only (no schedule/probe) → semantic session (hook).
 - **Source of truth** = each trigger `.md` file; `TRIGGERS.md` is an **ops index**
@@ -18,6 +18,8 @@ of truth, generated index, multiple registry roots).
   - User: `~/.claude/triggers/`
   - Project: `<project>/triggers/`
 - **Idempotency**: `.state/run-log.jsonl` keyed by `(name, key)`.
+- **Bundled optional triggers**: `bundled/` ships git/rest templates; `init` seeds only the locked guardrail. Install with `triggerctl add --from ./bundled/...`.
+- **>20 warning**: counts **hook-eligible** session triggers only (`in_context`), not time/event or `inject: false`.
 
 ## Install
 
@@ -26,11 +28,12 @@ cd triggers && bash install.sh
 ```
 
 Installs `triggerctl` on PATH, initializes the user registry, and configures Claude Code
-and Hermes Agent (default `AGENT=all`). **Start a new session** after install.
+and Hermes Agent and Codex CLI (default `AGENT=all`). **Start a new session** after install.
 
 ```bash
 AGENT=claude bash install.sh   # Claude only
 AGENT=hermes bash install.sh   # Hermes only
+AGENT=codex bash install.sh    # Codex only
 ```
 
 If `pip` is missing, `install.sh` uses `/opt/conda/bin/python3 -m pip`.
@@ -58,6 +61,15 @@ triggerctl install --hermes-hook   # hook only
 
 See [docs/hermes.md](docs/hermes.md).
 
+### Codex CLI
+
+```bash
+triggerctl install --codex        # hook + skill
+triggerctl install --codex-hook   # hook only
+```
+
+See [docs/codex.md](docs/codex.md).
+
 ## Context policy
 
 | Kind | Handler | In agent context? |
@@ -65,8 +77,8 @@ See [docs/hermes.md](docs/hermes.md).
 | time (`schedule`) | `triggerctl poll` | **No** |
 | event (`probe`) | `triggerctl poll` | **No** |
 | combo | `triggerctl poll` | **No** |
-| semantic session (`when` only) | UserPromptSubmit hook (Claude) / `pre_llm_call` (Hermes) | **Yes** |
-| `inject: false` | doctor / statusLine | **No** (rest → 🌙; >20 triggers → ⚠️ in status bar) |
+| semantic session (`when` only) | UserPromptSubmit hook (Claude/Codex) / `pre_llm_call` (Hermes) | **Yes** |
+| `inject: false` | doctor / statusLine | **No** (rest → 🌙; >20 **context** triggers → ⚠️ in status bar) |
 
 ## Docs
 
@@ -92,7 +104,10 @@ See [docs/hermes.md](docs/hermes.md).
 | `triggerctl install --hook` | Claude Code UserPromptSubmit injection |
 | `triggerctl install --hermes` | Full Hermes setup (hook + skill) |
 | `triggerctl install --hermes-hook` | Hermes pre_llm_call hook only |
+| `triggerctl install --codex` | Full Codex setup (hook + skill) |
+| `triggerctl install --codex-hook` | Codex UserPromptSubmit hook only |
 | `triggerctl hermes-hook` | Hermes hook entrypoint (JSON `context`) |
+| `triggerctl codex-hook` | Codex hook entrypoint (JSON `additionalContext`) |
 | `triggerctl install --statusline` | Status bar |
 | `triggerctl install --loop` | Background poll loop |
 | `triggerctl uninstall [--yes]` | Remove hooks/skills + user/project/system triggers |

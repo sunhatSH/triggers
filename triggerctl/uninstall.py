@@ -9,7 +9,7 @@ from typing import List, Optional, Set
 
 import yaml
 
-from . import hermes, registry
+from . import codex, hermes, registry
 from .roots import Root
 
 TRIGGERCTL_ENV_KEYS = (
@@ -19,6 +19,8 @@ TRIGGERCTL_ENV_KEYS = (
     "TRIGGERCTL_AGENT",
     "TRIGGERCTL_CLAUDE",
     "TRIGGERCTL_HERMES",
+    "TRIGGERCTL_CODEX",
+    "TRIGGERCTL_CODEX_EXEC_ARGS",
 )
 
 
@@ -39,7 +41,14 @@ def _is_triggerctl_command(command: str) -> bool:
     cmd = command or ""
     return any(
         token in cmd
-        for token in ("triggerctl hook", "triggerctl hermes-hook", "triggerctl statusline", "triggerctl-pre-llm")
+        for token in (
+            "triggerctl hook",
+            "triggerctl hermes-hook",
+            "triggerctl codex-hook",
+            "triggerctl statusline",
+            "triggerctl-pre-llm",
+            "triggerctl-user-prompt",
+        )
     )
 
 
@@ -170,6 +179,45 @@ def uninstall_hermes(rep: UninstallReport) -> None:
     _rmtree(hermes.skill_path().parent, rep)
 
 
+def uninstall_codex(rep: UninstallReport) -> None:
+    path, data = codex.load_hooks()
+    if not path.is_file():
+        rep.note_skipped(f"Codex hooks.json not found: {path}")
+    else:
+        groups = codex._user_prompt_submit_groups(data)
+        kept = []
+        removed_any = False
+        for group in groups:
+            inner = group.get("hooks") or []
+            kept_inner = [
+                h
+                for h in inner
+                if isinstance(h, dict) and not _is_triggerctl_command(str(h.get("command", "")))
+            ]
+            if kept_inner:
+                kept.append({**group, "hooks": kept_inner})
+            elif inner:
+                removed_any = True
+        if removed_any:
+            hooks = data.setdefault("hooks", {})
+            if kept:
+                hooks["UserPromptSubmit"] = kept
+            elif "UserPromptSubmit" in hooks:
+                del hooks["UserPromptSubmit"]
+            rep.note_removed("Codex UserPromptSubmit triggerctl hook")
+            if not rep.dry_run:
+                path.with_suffix(".json.triggerctl.bak").write_text(
+                    path.read_text(encoding="utf-8"),
+                    encoding="utf-8",
+                )
+                path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        else:
+            rep.note_skipped("Codex UserPromptSubmit hook not configured")
+
+    _remove_file(codex.hooks_dir() / "triggerctl-user-prompt-submit.sh", rep)
+    _rmtree(codex.skill_path().parent, rep)
+
+
 def uninstall_triggers(roots: List[Root], rep: UninstallReport) -> None:
     for root in _unique_roots(roots):
         if registry.strip_claude_session_block(root):
@@ -206,5 +254,7 @@ def run_uninstall(
             uninstall_claude(rep)
         if agents in ("all", "hermes"):
             uninstall_hermes(rep)
+        if agents in ("all", "codex"):
+            uninstall_codex(rep)
 
     return rep

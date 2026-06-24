@@ -1,6 +1,6 @@
 # triggerctl usage
 
-Embed **triggers** into Claude Code and Hermes Agent: run a prompt when a **schedule** fires,
+Embed **triggers** into Claude Code, Hermes Agent, and Codex CLI: run a prompt when a **schedule** fires,
 a **shell probe** succeeds, or a **semantic session condition** matches.
 
 ## Install
@@ -13,14 +13,15 @@ bash install.sh
 
 `install.sh` installs `triggerctl` on PATH, initializes the user registry (including the default
 system guardrail trigger), installs the skill, and writes agent hooks. Default `AGENT=all`
-configures both Claude Code and Hermes.
+configures Claude Code, Hermes, and Codex. Default `AGENT=all`.
 
 ```bash
 AGENT=claude bash install.sh   # Claude only
 AGENT=hermes bash install.sh   # Hermes only
+AGENT=codex bash install.sh    # Codex only
 ```
 
-**Start a new Claude and/or Hermes session** after install.
+**Start a new agent session** after install.
 
 > Many hosts lack a bare `pip` command. Prefer `bash install.sh`, or:
 > ```bash
@@ -36,6 +37,15 @@ triggerctl install --hermes
 
 See [docs/hermes.md](docs/hermes.md) for Hermes details.
 
+Codex-only setup after a manual pip install:
+
+```bash
+triggerctl init --root user
+triggerctl install --codex
+```
+
+See [docs/codex.md](docs/codex.md) for Codex details.
+
 ## Trigger types
 
 | Type | frontmatter | When it fires | Who evaluates |
@@ -46,7 +56,8 @@ See [docs/hermes.md](docs/hermes.md) for Hermes details.
 
 - `schedule` + `probe` together = **combo** (AND).
 - `locked: true` = cannot be disabled or removed with `disable` / `remove`.
-- `inject: false` = registered but **not** injected into model context (e.g. rest reminder → status bar only).
+- `inject: false` = registered but **not** injected into model context (e.g. rest reminder → statusLine only).
+- **>20 warning** (statusLine / doctor) counts **hook-eligible** session triggers only — not time/event or `inject: false`.
 
 ## Registry roots
 
@@ -54,7 +65,8 @@ See [docs/hermes.md](docs/hermes.md) for Hermes details.
 |---|---|---|
 | User | `~/.claude/triggers/` | Global, all projects |
 | Project | `<project>/triggers/` | Committed with the repo |
-| System | `~/.claude/triggers/system-triggers/` | Guardrails (e.g. `too-many-triggers-warning`) |
+| System | `~/.claude/triggers/system-triggers/` | Guardrails (e.g. `too-many-triggers-warning`; only this one is seeded on `init`) |
+| Bundled (repo) | `triggerctl/bundled/` | Optional templates — install with `add --from`, not auto-installed |
 
 `TRIGGERS.md` is an **ops index only** — not injected into agent context.
 
@@ -80,6 +92,7 @@ triggerctl status -n 20                        # run-log
 triggerctl sync                                # regenerate TRIGGERS.md from .md files
 triggerctl hook                                # session block (Claude UserPromptSubmit)
 triggerctl hermes-hook                         # session JSON (Hermes pre_llm_call)
+triggerctl codex-hook                          # session JSON (Codex UserPromptSubmit)
 ```
 
 Install from Git or local paths (similar to `skills add`):
@@ -115,15 +128,15 @@ nohup ~/.claude/triggers/run-loop.sh 60 >/dev/null 2>&1 &
 triggerctl install --root user --cron
 ```
 
-Poll execution uses `claude -p` by default, or `hermes chat -q` when `TRIGGERCTL_AGENT=hermes`
-(or when only Hermes is on PATH).
+Poll execution uses `claude -p` by default, `hermes chat -q` when `TRIGGERCTL_AGENT=hermes`,
+or `codex exec` when `TRIGGERCTL_AGENT=codex` (or auto-detect when only that CLI is on PATH).
 
 ## How embedding works
 
 | Kind | Mechanism | In model context? |
 |---|---|---|
 | time / event / combo | `triggerctl poll` | **No** |
-| semantic session (`when` only) | Claude `UserPromptSubmit` / Hermes `pre_llm_call` | **Yes** |
+| semantic session (`when` only) | Claude/Codex `UserPromptSubmit` / Hermes `pre_llm_call` | **Yes** |
 | `inject: false` | `triggerctl doctor` / Claude statusLine | **No** |
 
 Claude Code:
@@ -136,7 +149,11 @@ Hermes:
 
 1. **`install --hermes`** — `pre_llm_call` hook + skill (same registry and session semantics as Claude).
 
-Changing hooks, skills, or `settings.json` / `config.yaml` requires a **new agent session**. Editing trigger `.md` files is picked up on the **next message** (hook rescans disk).
+Codex:
+
+1. **`install --codex`** — `UserPromptSubmit` hook + skill (trust hook via Codex `/hooks` if prompted).
+
+Changing hooks, skills, or agent config requires a **new agent session**. Editing trigger `.md` files is picked up on the **next message** (hook rescans disk).
 
 ## Troubleshooting
 
@@ -149,6 +166,7 @@ Changing hooks, skills, or `settings.json` / `config.yaml` requires a **new agen
 3. **Session trigger did not fire?**
    - Claude: run `triggerctl install --hook`, then start a new session.
    - Hermes: run `triggerctl install --hermes`, then start a new session.
+   - Codex: run `triggerctl install --codex`, trust the hook via `/hooks`, then start a new session.
    - Session triggers are soft: the model may miss a match while focused elsewhere — expected; less reliable than poll-based triggers.
 
 4. **Wrong time / timezone?** Containers often run UTC without tzdata. Use **`export TRIGGERCTL_TZ_OFFSET=8`** (default +8). Applies to `schedule --at`, `poll`/`detect`, hook, and statusLine.
@@ -172,6 +190,7 @@ triggerctl uninstall --keep-triggers              # hooks/skills only
 triggerctl uninstall --triggers-only --yes        # trigger files only
 triggerctl uninstall --root user --yes            # user scope only (includes system-triggers)
 triggerctl uninstall --agent claude --yes         # Claude integration only
+triggerctl uninstall --agent codex --yes          # Codex integration only
 ```
 
 Uninstall does **not** remove the Python package. To remove it:

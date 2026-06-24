@@ -69,6 +69,16 @@ def build_hermes_output(block: str) -> str:
     return json.dumps({"context": block}, ensure_ascii=False)
 
 
+def run_codex_hook(data: Dict[str, Any] | None = None) -> int:
+    """Emit session trigger context for Codex UserPromptSubmit (JSON additionalContext)."""
+    data = data if data is not None else read_hook_input()
+    block = session_context_for_hook(data)
+    if not block:
+        return 0
+    print(build_hook_output(block, replace_mode=False))
+    return 0
+
+
 def run_pre_llm_call(data: Dict[str, Any] | None = None) -> int:
     """Emit session trigger context for Hermes pre_llm_call (JSON {\"context\": ...})."""
     data = data if data is not None else read_hook_input()

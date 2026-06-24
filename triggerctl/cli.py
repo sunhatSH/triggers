@@ -16,7 +16,7 @@ def _add_root_arg(p):
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="triggerctl",
-        description="Triggers for Claude Code and Hermes Agent",
+        description="Triggers for Claude Code, Hermes Agent, and Codex CLI",
     )
     sub = ap.add_subparsers(dest="cmd", required=True)
 
@@ -75,6 +75,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--hook", action="store_true", help="Claude Code UserPromptSubmit hook → settings.json")
     p.add_argument("--hermes-hook", action="store_true", help="Hermes pre_llm_call hook only")
     p.add_argument("--hermes", action="store_true", help="Full Hermes setup: hook + skill + hooks_auto_accept")
+    p.add_argument("--codex-hook", action="store_true", help="Codex UserPromptSubmit hook only")
+    p.add_argument("--codex", action="store_true", help="Full Codex setup: hook + skill")
     p.add_argument("--statusline", action="store_true", help="Claude Code statusLine (rest / too-many warnings)")
     p.add_argument("--interval", type=int, default=60, help="循环间隔秒（默认 60）")
 
@@ -82,7 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_root_arg(p)
     p.add_argument(
         "--agent",
-        choices=("claude", "hermes", "all"),
+        choices=("claude", "hermes", "codex", "all"),
         default="all",
         help="Which agent integration to remove (default: all)",
     )
@@ -96,11 +98,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--triggers-only",
         action="store_true",
-        help="Remove trigger data only; keep Claude/Hermes hooks and skills",
+        help="Remove trigger data only; keep agent hooks and skills",
     )
 
     sub.add_parser("hook", help="Session trigger block (Claude Code UserPromptSubmit)")
     sub.add_parser("hermes-hook", help="Session trigger JSON (Hermes pre_llm_call)")
+    sub.add_parser("codex-hook", help="Session trigger JSON (Codex UserPromptSubmit)")
     sub.add_parser("statusline", help="Status line text (Claude Code statusLine)")
 
     sub.add_parser("doctor", help="检查安装、hook、索引、轮询等是否正常")
@@ -177,7 +180,9 @@ def main(argv=None) -> int:
         mode = (
             "hook" if args.hook
             else "hermes" if args.hermes
+            else "codex" if args.codex
             else "hermes-hook" if args.hermes_hook
+            else "codex-hook" if args.codex_hook
             else "statusline" if args.statusline
             else "cron" if args.cron
             else "loop"
@@ -196,6 +201,8 @@ def main(argv=None) -> int:
         return commands.cmd_hook()
     if c == "hermes-hook":
         return commands.cmd_hermes_hook()
+    if c == "codex-hook":
+        return commands.cmd_codex_hook()
     if c == "statusline":
         return commands.cmd_statusline()
     return 2

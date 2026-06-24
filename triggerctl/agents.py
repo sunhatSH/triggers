@@ -1,4 +1,4 @@
-"""Agent runtime detection and headless execution (Claude Code / Hermes)."""
+"""Agent runtime detection and headless execution (Claude Code / Hermes / Codex)."""
 from __future__ import annotations
 
 import os
@@ -19,11 +19,16 @@ class ExecResult:
 
 
 def preferred_agent() -> str:
-    """Which agent to use for poll execution: claude, hermes, or auto-detect."""
+    """Which agent to use for poll execution: claude, hermes, codex, or auto-detect."""
     v = os.environ.get("TRIGGERCTL_AGENT", "auto").strip().lower()
-    if v in ("claude", "hermes"):
+    if v in ("claude", "hermes", "codex"):
         return v
-    if shutil.which("hermes") and not shutil.which("claude"):
+    has_claude = bool(find_claude())
+    has_hermes = bool(find_hermes())
+    has_codex = bool(find_codex())
+    if has_codex and not has_claude and not has_hermes:
+        return "codex"
+    if has_hermes and not has_claude:
         return "hermes"
     return "claude"
 
@@ -43,10 +48,16 @@ def find_hermes() -> Optional[str]:
     return os.environ.get("TRIGGERCTL_HERMES") or shutil.which("hermes")
 
 
+def find_codex() -> Optional[str]:
+    return os.environ.get("TRIGGERCTL_CODEX") or shutil.which("codex")
+
+
 def find_agent_bin(agent: Optional[str] = None) -> Optional[str]:
     agent = agent or preferred_agent()
     if agent == "hermes":
         return find_hermes()
+    if agent == "codex":
+        return find_codex()
     return find_claude()
 
 
@@ -73,6 +84,8 @@ def run_prompt(
 
     if agent == "hermes":
         return _run_hermes(prompt, cwd, extra_args)
+    if agent == "codex":
+        return _run_codex(prompt, cwd, extra_args)
     return _run_claude(prompt, cwd, extra_args, claude_bin=claude_bin)
 
 
@@ -100,6 +113,23 @@ def _run_hermes(prompt: str, cwd: Path, extra_args: Optional[List[str]]) -> Exec
     if extra_args:
         cmd.extend(extra_args)
     return _run_subprocess(cmd, cwd, "hermes")
+
+
+def _default_codex_exec_args() -> List[str]:
+    raw = os.environ.get("TRIGGERCTL_CODEX_EXEC_ARGS", "").strip()
+    if raw:
+        return raw.split()
+    return ["--sandbox", "workspace-write", "--ask-for-approval", "never"]
+
+
+def _run_codex(prompt: str, cwd: Path, extra_args: Optional[List[str]]) -> ExecResult:
+    codex_bin = find_codex()
+    if not codex_bin:
+        return ExecResult(False, "", "codex CLI not found (set TRIGGERCTL_CODEX or add to PATH)")
+    cmd = [codex_bin, "exec", *_default_codex_exec_args(), prompt]
+    if extra_args:
+        cmd = [codex_bin, "exec", *extra_args, prompt]
+    return _run_subprocess(cmd, cwd, "codex")
 
 
 def _run_subprocess(cmd: List[str], cwd: Path, label: str) -> ExecResult:

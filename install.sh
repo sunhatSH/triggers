@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# triggerctl install — embed triggers into Claude Code and/or Hermes Agent.
+# triggerctl install — embed triggers into Claude Code, Hermes Agent, and/or Codex CLI.
 #
 # 1) Install triggerctl (editable) with a Python that has pip; link onto PATH
 # 2) Initialize user registry (includes default guardrail trigger)
@@ -7,7 +7,7 @@
 #
 # Usage:  bash install.sh
 # Options:
-#   AGENT=claude|hermes|all   (default: all)
+#   AGENT=claude|hermes|codex|all   (default: all)
 #   PYTHON=/opt/conda/bin/python3 bash install.sh
 #   PREFIX_BIN=~/.local/bin bash install.sh
 set -euo pipefail
@@ -113,12 +113,18 @@ install_hermes() {
   "$TCTL" install --hermes
 }
 
+install_codex() {
+  echo "==> Codex CLI: skill + UserPromptSubmit hook"
+  "$TCTL" install --codex
+}
+
 case "$AGENT" in
   claude) install_claude ;;
   hermes) install_hermes ;;
-  all) install_claude; install_hermes ;;
+  codex) install_codex ;;
+  all) install_claude; install_hermes; install_codex ;;
   *)
-    echo "!! Unknown AGENT=$AGENT (use claude, hermes, or all)" >&2
+    echo "!! Unknown AGENT=$AGENT (use claude, hermes, codex, or all)" >&2
     exit 1
     ;;
 esac
@@ -134,5 +140,5 @@ cat <<EOF
 Upgrade later:
    $PY -m pip install -e $REPO_DIR
 
-⚠️ Start a new Claude and/or Hermes session to verify hooks and skills.
+⚠️ Start a new Claude, Hermes, and/or Codex session to verify hooks and skills.
 EOF

@@ -118,6 +118,44 @@ def test_uninstall_hermes_config(tmp_path, monkeypatch):
     assert not wrapper.exists()
 
 
+def test_uninstall_codex_hooks(tmp_path, monkeypatch):
+    hooks_path = tmp_path / "hooks.json"
+    hooks_path.write_text(
+        json.dumps(
+            {
+                "hooks": {
+                    "UserPromptSubmit": [
+                        {
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": str(tmp_path / "triggerctl-user-prompt-submit.sh"),
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    wrapper = tmp_path / "hooks" / "triggerctl-user-prompt-submit.sh"
+    wrapper.parent.mkdir(parents=True)
+    wrapper.write_text("#!/bin/sh\n", encoding="utf-8")
+
+    monkeypatch.setattr(uninstall.codex, "hooks_json_path", lambda: hooks_path)
+    monkeypatch.setattr(uninstall.codex, "load_hooks", lambda path=None: (hooks_path, json.loads(hooks_path.read_text())))
+    monkeypatch.setattr(uninstall.codex, "hooks_dir", lambda: tmp_path / "hooks")
+    monkeypatch.setattr(uninstall.codex, "skill_path", lambda: tmp_path / "skills" / "triggerctl" / "SKILL.md")
+
+    rep = uninstall.UninstallReport()
+    uninstall.uninstall_codex(rep)
+
+    data = json.loads(hooks_path.read_text())
+    assert "UserPromptSubmit" not in data.get("hooks", {})
+    assert not wrapper.exists()
+
+
 def test_uninstall_dry_run_keeps_files(tmp_path, monkeypatch):
     root = Root("user", tmp_path / "triggers")
     _seed_triggers(root)

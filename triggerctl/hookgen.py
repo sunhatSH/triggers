@@ -24,13 +24,13 @@ TOO_MANY_THRESHOLD = 20
 
 
 def enabled_trigger_count(roots: Optional[List[Root]] = None) -> int:
-    """Count enabled triggers across registry roots."""
+    """Count triggers eligible for hook context injection (semantic session, inject!=false)."""
     roots = roots if roots is not None else all_roots()
     total = 0
     for root in roots:
         if not root.path.is_dir():
             continue
-        total += sum(1 for t in discover(root) if t.enabled)
+        total += sum(1 for t in discover(root) if t.in_context)
     return total
 
 
@@ -69,7 +69,7 @@ def statusline(
         line += f"  🌙 rest window ({now:%H:%M})"
     n = enabled_trigger_count(roots)
     if n > TOO_MANY_THRESHOLD:
-        line += f"  ⚠️ {n} triggers (>{TOO_MANY_THRESHOLD})"
+        line += f"  ⚠️ {n} context triggers (>{TOO_MANY_THRESHOLD})"
     return line
 
 

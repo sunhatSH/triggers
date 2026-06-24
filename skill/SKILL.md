@@ -1,6 +1,10 @@
 ---
 name: triggerctl
-description: Register and manage triggers with triggerctl for Claude Code and Hermes Agent — run on schedule (time), when a shell probe succeeds (event), or when a semantic session condition matches. Keywords: register trigger, schedule task, Hermes, Claude Code, when X then Y, auto commit, nightly poll, list/enable/disable triggers, install poll loop.
+description: >-
+  Register and manage triggers with triggerctl for Claude Code, Hermes Agent, and
+  Codex CLI. Run on schedule (time), when a shell probe succeeds (event), or when
+  a semantic session condition matches. Keywords include register trigger, schedule
+  task, auto commit, nightly poll, list/enable/disable triggers, install poll loop.
 ---
 
 # triggerctl
@@ -23,7 +27,8 @@ Manage triggers via `triggerctl` (on PATH after `install.sh`). Engine docs: [tri
 - **Roots**: user `~/.claude/triggers/` · project `<repo>/triggers/`
 - **Timezone**: `TRIGGERCTL_TZ_OFFSET=8` (default +8)
 - **Hook replace (experimental, Claude only)**: `TRIGGERCTL_HOOK_REPLACE=1` in settings env
-- **Hermes**: `triggerctl install --hermes-hook` → `pre_llm_call` in `~/.hermes/config.yaml`; command `triggerctl hermes-hook`
+- **Hermes**: `triggerctl install --hermes` → `pre_llm_call` in `~/.hermes/config.yaml`; `triggerctl hermes-hook`
+- **Codex**: `triggerctl install --codex` → `UserPromptSubmit` in `~/.codex/hooks.json`; `triggerctl codex-hook`
 
 ## Register a trigger
 

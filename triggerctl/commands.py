@@ -15,15 +15,18 @@ BODY_STUB = "# {name}\n\nSteps to run when this trigger fires (natural language 
 
 # Default system guardrail trigger (locked)
 WARN_NAME = "too-many-triggers-warning"
-WARN_WHEN = "when more than 20 enabled triggers are registered in the index"
+WARN_WHEN = "when more than 20 context-injected session triggers are registered"
 WARN_BODY = """# too-many-triggers-warning
 
 System guardrail (`locked: true`). Not injected into agent context.
 
-When enabled count > 20, `triggerctl statusline` shows `⚠️ N triggers (>20)` in the
+Counts **hook-eligible** triggers only: enabled semantic session triggers with
+`inject: true` (default). time/event triggers and `inject: false` entries are excluded.
+
+When that count > 20, `triggerctl statusline` shows `⚠️ N context triggers (>20)` in the
 Agent status bar (same channel as rest reminders). `triggerctl doctor` also warns.
 
-Suggest: `triggerctl disable <name>` for unused triggers.
+Suggest: `triggerctl disable <name>` for unused session triggers.
 """
 
 
@@ -69,6 +72,7 @@ def cmd_init(selector: Optional[str]) -> int:
     (root.state_dir / "run-log.jsonl").touch(exist_ok=True)
     if root.kind == "user" and _seed_defaults(root):
         print(f"Seeded default guardrail trigger: {WARN_NAME} (locked)")
+        print("Optional bundled triggers: triggerctl add --from ./bundled/<path> --root user")
     n = registry.sync(root)
     print(f"Initialized {root}  ({n} trigger(s) indexed)")
     print(f"Ops index: {root.index_file}")
@@ -319,6 +323,13 @@ def cmd_hermes_hook() -> int:
     return hook_runner.run_pre_llm_call()
 
 
+def cmd_codex_hook() -> int:
+    """Print session-trigger context (Codex UserPromptSubmit hook entrypoint)."""
+    from . import hook_runner
+
+    return hook_runner.run_codex_hook()
+
+
 def cmd_statusline() -> int:
     """Print the deterministic status line (Claude Code statusLine command)."""
     import json
@@ -390,6 +401,34 @@ def cmd_install_hermes() -> int:
     print(f"Installed skill → {result['skill']}")
     print("Note: start a new Hermes session. Poll uses `hermes chat -q` when TRIGGERCTL_AGENT=hermes")
     print("      or when only Hermes is on PATH. Shared registry: ~/.claude/triggers/ + <project>/triggers/")
+    return 0
+
+
+def cmd_install_codex_hook() -> int:
+    """Register triggerctl on Codex UserPromptSubmit in ~/.codex/hooks.json."""
+    from . import codex
+
+    path = codex.install_user_prompt_hook(_triggerctl_cmd())
+    print(f"Wrote Codex UserPromptSubmit hook to {path}")
+    print(f"  wrapper: {codex.hooks_dir() / 'triggerctl-user-prompt-submit.sh'}")
+    print("Note: trust the hook in Codex (`/hooks`) on first run if prompted.")
+    return 0
+
+
+def cmd_install_codex() -> int:
+    """Full Codex setup: UserPromptSubmit hook + skill."""
+    from . import codex
+
+    try:
+        result = codex.install_full(_triggerctl_cmd())
+    except FileNotFoundError as exc:
+        print(f"Install failed: {exc}", file=sys.stderr)
+        return 1
+    print(f"Wrote Codex UserPromptSubmit hook to {result['hooks']}")
+    print(f"  wrapper: {result['wrapper']}")
+    print(f"Installed skill → {result['skill']}")
+    print("Note: start a new Codex session. Trust the hook via `/hooks` if prompted.")
+    print("      Poll uses `codex exec` when TRIGGERCTL_AGENT=codex or only Codex is on PATH.")
     return 0
 
 
@@ -478,7 +517,7 @@ def cmd_uninstall(
     elif dry_run:
         print("\n(dry-run — no changes made)")
     else:
-        print("\nDone. Start a new Claude/Hermes session if hooks were removed.")
+        print("\nDone. Start a new Claude/Hermes/Codex session if hooks were removed.")
         if remove_integration:
             print("To remove the Python package: python3 -m pip uninstall triggerctl")
     return 0
@@ -491,6 +530,10 @@ def cmd_install(selector: Optional[str], mode: str, interval: int) -> int:
         return cmd_install_hermes()
     if mode == "hermes-hook":
         return cmd_install_hermes_hook()
+    if mode == "codex":
+        return cmd_install_codex()
+    if mode == "codex-hook":
+        return cmd_install_codex_hook()
     if mode == "statusline":
         return cmd_install_statusline()
     root = primary(selector)

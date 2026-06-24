@@ -7,7 +7,7 @@ from .agents import ExecResult, build_prompt, find_agent_bin, run_prompt
 from .model import Trigger
 
 # Re-export for callers/tests.
-__all__ = ["ExecResult", "find_claude", "find_hermes", "find_agent_bin", "execute"]
+__all__ = ["ExecResult", "find_claude", "find_hermes", "find_codex", "find_agent_bin", "execute"]
 
 
 def find_claude() -> Optional[str]:
@@ -22,6 +22,12 @@ def find_hermes() -> Optional[str]:
     return _fh()
 
 
+def find_codex() -> Optional[str]:
+    from .agents import find_codex as _fcx
+
+    return _fcx()
+
+
 def execute(
     trigger: Trigger,
     claude_bin: Optional[str] = None,
@@ -33,7 +39,7 @@ def execute(
     if claude_bin and not agent:
         agent = "claude"
     elif not agent and not find_agent_bin():
-        return ExecResult(False, "", "no agent CLI (claude or hermes) on PATH")
+        return ExecResult(False, "", "no agent CLI (claude, hermes, or codex) on PATH")
 
     prompt = build_prompt(trigger.name, trigger.body)
     agent = agent or ("claude" if claude_bin else None)

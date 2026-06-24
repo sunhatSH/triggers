@@ -82,7 +82,7 @@ def run_live_checks() -> bool:
 
     count = hookgen.enabled_trigger_count()
     threshold = hookgen.TOO_MANY_THRESHOLD
-    print(f"  enabled triggers (all roots): {count}  (threshold {threshold})")
+    print(f"  context-injected triggers (all roots): {count}  (threshold {threshold})")
 
     payload = json.dumps(
         {
