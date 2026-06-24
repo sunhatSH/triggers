@@ -339,6 +339,8 @@ def _kind(meta: dict) -> str:
 
 
 def cmd_remove(name: str, selector: Optional[str]) -> int:
+    from . import frontmatter
+
     roots = resolve(selector)
     t = find(roots, name)
     if not t:
@@ -348,10 +350,39 @@ def cmd_remove(name: str, selector: Optional[str]) -> int:
         print(f"{name} 是 locked（不可关闭/删除）。如确需删除，先编辑其文件去掉 `locked: true` 再 remove。",
               file=sys.stderr)
         return 2
+    # Read frontmatter before unlinking — check for statusline: true
+    needs_statusline_cleanup = False
+    try:
+        meta, _ = frontmatter.read_file(t.path)
+        if bool(meta.get("statusline", False)):
+            needs_statusline_cleanup = True
+    except Exception:
+        pass
     t.path.unlink()
     registry.sync(t.root)
-    print(f"已删除 {name} ({t.path})")
+    if needs_statusline_cleanup:
+        _remove_statusline_from_settings()
+    msg = f"已删除 {name} ({t.path})"
+    if needs_statusline_cleanup:
+        msg += " + 已清理 statusLine"
+    print(msg)
     return 0
+
+
+def _remove_statusline_from_settings() -> None:
+    """Remove the statusLine entry from ~/.claude/settings.json if present."""
+    import json
+    settings = Path.home() / ".claude" / "settings.json"
+    if not settings.is_file():
+        return
+    try:
+        data = json.loads(settings.read_text(encoding="utf-8"))
+    except Exception:
+        return
+    if "statusLine" not in data:
+        return
+    del data["statusLine"]
+    settings.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def _set_enabled_text(path: Path, value: bool) -> None:
