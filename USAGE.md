@@ -1,8 +1,9 @@
-# triggerctl 使用说明
+# triggerctl usage
 
-把"触发器"作为能力嵌入 Claude Code Agent：让命令/prompt 在**到点**、**条件成立**或 **Agent 判断某语义条件成立**时执行。
+Embed **triggers** into Claude Code, Hermes Agent, and Codex CLI: run a prompt when a **schedule** fires,
+a **shell probe** succeeds, or a **semantic session condition** matches.
 
-## 安装
+## Install
 
 ```bash
 git clone git@github.com:sunhatSH/triggers.git
@@ -10,102 +11,191 @@ cd triggers
 bash install.sh
 ```
 
-`install.sh` 会：用带 pip 的 Python 安装 `triggerctl` → 初始化用户级触发器根 → 安装 skill → 写入 hook + statusLine。**装完务必新开一个 `claude` 会话**才生效。
+`install.sh` installs `triggerctl` on PATH, initializes the user registry (including the default
+system guardrail trigger), installs the skill, and writes agent hooks. Default `AGENT=all`
+configures Claude Code, Hermes, and Codex. Default `AGENT=all`.
 
-> 本机通常**没有 `pip` 命令**（`/usr/bin/python3` 也无 pip 模块）。请直接：
+```bash
+AGENT=claude bash install.sh   # Claude only
+AGENT=hermes bash install.sh   # Hermes only
+AGENT=codex bash install.sh    # Codex only
+```
+
+**Start a new agent session** after install.
+
+> Many hosts lack a bare `pip` command. Prefer `bash install.sh`, or:
 > ```bash
-> cd triggers && bash install.sh
-> # 或指定解释器：
 > PYTHON=/opt/conda/bin/python3 bash install.sh
 > ```
 
-## 三类触发器
-
-| 类型 | frontmatter | 何时触发 | 谁评估 |
-|---|---|---|---|
-| `time` | `schedule`(every/at/on) | 到点 | `triggerctl poll`（后台轮询，便宜检测层） |
-| `event` | `probe`(shell 退出码 0) | 条件成立 | `triggerctl poll` |
-| `session` | `when`(自然语言) | Agent 自判语义条件 | **会话内**（由注入 hook 把条件喂进上下文，模型自检） |
-
-- `time`+`probe` 同写 = 组合（AND）。
-- 任意类型加 `locked: true` = 不可关闭（`disable`/`remove` 被拒）。
-
-## 两种使用方式
-
-**A. 对 Claude 说人话**（`triggerctl` skill 会让它替你注册）：
-> "注册一个每天 14:30 自动备份的触发器" / "完成一个特性就提交" / "列出/停用 xxx"
-
-**B. 终端命令**：
+Hermes-only setup after a manual pip install:
 
 ```bash
-triggerctl list [--root all|user|project]      # 列出（🔒=不可关闭，停用的不在生成索引里）
-triggerctl add <name> --root user [条件参数]    # 注册（见下），自动刷新索引
-triggerctl add --from <SOURCE> [--list]        # 从 Git/本地安装（见下）
-triggerctl update [--root user] [--force]      # 按 triggers-lock.json 更新已装包
-triggerctl doctor                              # 健康检查：PATH/hook/索引/轮询
-triggerctl validate [--probe-test]             # 校验 frontmatter、重名、索引过期
-triggerctl enable/disable/remove <name>        # 开/关/删
-triggerctl detect                              # 便宜检测：现在哪些 DUE（不调模型）
-triggerctl poll [--dry-run]                    # 检测 + 仅对 DUE 调模型执行
-triggerctl status -n 20                        # run-log
-triggerctl sync                                # 由触发器文件重建 TRIGGERS.md
-triggerctl hook                                # 输出 session 条件块（hook 内部用）
+triggerctl init --root user
+triggerctl install --hermes
 ```
 
-从 Git / 本地安装（对标 `skills add`）：
+See [docs/integrations/hermes.md](docs/integrations/hermes.md) for Hermes details.
+
+Codex-only setup after a manual pip install:
 
 ```bash
-triggerctl add --from sunhatSH/triggers/examples --list
-triggerctl add --from ./examples/time-daily-backup.md --root user
+triggerctl init --root user
+triggerctl install --codex
+```
+
+See [docs/integrations/codex.md](docs/integrations/codex.md) for Codex details.
+
+## Trigger types
+
+| Type | frontmatter | When it fires | Who evaluates |
+|---|---|---|---|
+| `time` | `schedule` (`every` / `at` / `on`) | On schedule | `triggerctl poll` (cheap detection layer) |
+| `event` | `probe` (shell exits 0) | When probe succeeds | `triggerctl poll` |
+| `session` | `when` (natural language) | Agent judges semantics | **In-session** (hook injects conditions each turn) |
+
+- `schedule` + `probe` together = **combo** (AND).
+- `locked: true` = cannot be disabled or removed with `disable` / `remove`.
+- `inject: false` = registered but **not** injected into model context (e.g. rest reminder → statusLine only).
+- **>5 warning** (statusLine / doctor) counts **hook-eligible** session triggers only — not time/event or `inject: false`.
+
+## Registry roots
+
+| Scope | Path | Notes |
+|---|---|---|
+| User | `~/.claude/triggers/` | Global, all projects |
+| Project | `<project>/triggers/` | Committed with the repo |
+| System | `~/.claude/triggers/system-triggers/` | Guardrails (e.g. `too-many-triggers-warning`; only this one is seeded on `init`) |
+| Catalog (repo) | `catalog/` | Optional templates — `session/` (hook) and `poll/` (time/event); install with `add --from` |
+
+`TRIGGERS.md` is an **ops index only** — not injected into agent context.
+
+## Two ways to work
+
+**A. Natural language** (the `triggerctl` skill lets the agent register for you):
+
+> "Register a trigger that runs a backup every day at 14:30" / "Commit when I finish a feature" / "List or disable trigger X"
+
+**B. CLI**:
+
+```bash
+triggerctl list [--root all|user|project]      # list (🔒 = locked)
+triggerctl add <name> --root user [options]    # register (see below)
+triggerctl add --from <SOURCE> [--list]        # install from Git/local
+triggerctl update [--root user] [--force]      # update from triggers-lock.json
+triggerctl doctor                              # health check: PATH, hooks, index, poll
+triggerctl validate [--probe-test]             # validate frontmatter, duplicates, stale index
+triggerctl enable / disable / remove <name>    # toggle or delete one trigger
+triggerctl detect                              # cheap detection: what is DUE (no model)
+triggerctl poll [--dry-run]                    # detect + execute DUE triggers via agent CLI
+triggerctl status -n 20                        # run-log
+triggerctl sync                                # regenerate TRIGGERS.md from .md files
+triggerctl hook                                # session block (Claude UserPromptSubmit)
+triggerctl hermes-hook                         # session JSON (Hermes pre_llm_call)
+triggerctl codex-hook                          # session JSON (Codex UserPromptSubmit)
+```
+
+Install from Git or local paths (similar to `skills add`):
+
+```bash
+triggerctl add --from sunhatSH/triggers/catalog/poll --list
+triggerctl add --from ./catalog/poll/daily-backup.md --root user
 triggerctl update --root user
 ```
 
-SOURCE：`owner/repo[/path]`、git URL、本地目录或单个 `.md`。安装记录写入 `triggers-lock.json`。
+`SOURCE`: `owner/repo[/path]`, git URL, local directory, or a single `.md`. Installs are recorded in `triggers-lock.json`.
 
-注册示例：
+Registration examples:
 
 ```bash
 triggerctl add nightly  --root user --category ops   --every day --at 02:00
-triggerctl add on-done  --root user --category watch --probe 'test -f /data/done.flag' --dedup-cmd 'stat -c %Y /data/done.flag'
-triggerctl add commit   --root user --category git   --when '完成一个特性时：小提交/大推送'
+triggerctl add on-done  --root user --category watch \
+  --probe 'test -f /data/done.flag' --dedup-cmd 'stat -c %Y /data/done.flag'
+triggerctl add commit   --root user --category git   --when 'When I finish a feature: small=commit only, large=commit and push'
 triggerctl add guard    --root user --when '...' --locked
 ```
-`add` 后**编辑生成的 .md 正文**，把动作写清楚（写给模型看的步骤）。
 
-## 让 time/event 真正自动跑
+After `add`, **edit the generated `.md` body** with clear action steps for the model.
 
-`session` 型靠会话内 hook；`time`/`event` 型需要后台轮询：
+## Making time/event triggers run automatically
+
+Session triggers rely on the in-session hook. Time and event triggers need a background poll loop:
 
 ```bash
 triggerctl install --root user --loop --interval 60
 nohup ~/.claude/triggers/run-loop.sh 60 >/dev/null 2>&1 &
-# 有 cron：triggerctl install --root user --cron
+# or print a crontab line:
+triggerctl install --root user --cron
 ```
 
-## 嵌入机制（为什么用 hook + statusLine）
+Poll execution uses `claude -p` by default, `hermes chat -q` when `TRIGGERCTL_AGENT=hermes`,
+or `codex exec` when `TRIGGERCTL_AGENT=codex` (or auto-detect when only that CLI is on PATH).
 
-- `time`/`event`：`triggerctl poll` 后台跑，**确定性**。
-- `session`：条件是语义的，没有 shell 能判定。靠三层嵌入：
-  1. **`triggerctl sync`** 写入 CLAUDE.md managed block（最高优先级）
-  2. **`install --hook`**：UserPromptSubmit 每轮注入条件 + 换算后本地时间
-  3. **`install --statusline`**：状态栏确定性显示（如休息提醒，不依赖模型）
-- 装完或改配置后**必须新开 `claude` 会话**才生效。
+## How embedding works
 
-## 常见问题（重要）
+| Kind | Mechanism | In model context? |
+|---|---|---|
+| time / event / combo | `triggerctl poll` | **No** |
+| semantic session (`when` only) | Claude/Codex `UserPromptSubmit` / Hermes `pre_llm_call` | **Yes** |
+| `inject: false` | `triggerctl doctor` / Claude statusLine | **No** |
 
-1. **改了触发器/CLAUDE.md/hook 后没生效？** 它们都只在**会话启动时**加载。运行中的会话看不到改动，**必须新开 `claude` 会话**。
-2. **不确定装对了没？** 跑 **`triggerctl doctor`**；改完触发器文件后跑 **`triggerctl validate`** 看索引是否过期、schedule 是否合法。
-3. **session 触发器没触发？**
-   - 没装注入 hook：跑 `triggerctl install --hook` 再开新会话。
-   - 它是软触发：即使条件注入了，模型仍可能在专注别的任务时漏掉——属预期，可靠性 < 确定性机制。
-4. **时间不对 / 定时和时区？** 容器多为 UTC 且常缺 tzdata。统一用 **`export TRIGGERCTL_TZ_OFFSET=8`**（默认已是 +8）：`schedule --at`、`poll`/`detect`、hook、statusLine 都按此本地时间解释。POSIX `TZ='UTC-8' date` 仅作 shell 参考。
-5. **`python -m triggerctl` 报找不到包？** 默认 `/usr/bin/python3` 没装本包；用 **`triggerctl` 命令**（链到 conda）或 **`/opt/conda/bin/python3 -m triggerctl`**。安装/升级用 **`/opt/conda/bin/python3 -m pip install -e .`**，不要写裸 `pip`。
+Claude Code:
 
-## 卸载
+1. **`install --hook`** — injects session trigger conditions each user turn (uses hook stdin `cwd` for project triggers).
+2. **`install --statusline`** — deterministic status bar (rest window 🌙, >5 context triggers ⚠️).
+3. Optional **`TRIGGERCTL_HOOK_REPLACE=1`** — experimental latest-only injection (see [docs/proposals/user-prompt-submit-replacement-context.md](docs/proposals/user-prompt-submit-replacement-context.md)).
+
+Hermes:
+
+1. **`install --hermes`** — `pre_llm_call` hook + skill (same registry and session semantics as Claude).
+
+Codex:
+
+1. **`install --codex`** — `UserPromptSubmit` hook + skill (trust hook via Codex `/hooks` if prompted).
+
+Changing hooks, skills, or agent config requires a **new agent session**. Editing trigger `.md` files is picked up on the **next message** (hook rescans disk).
+
+## Troubleshooting
+
+1. **Changes not taking effect?**
+   - Hook/skill/settings changes → **new session**.
+   - Trigger `.md` edits → next message in an existing session is enough.
+
+2. **Not sure install is correct?** Run **`triggerctl doctor`**. After editing triggers, run **`triggerctl validate`**.
+
+3. **Session trigger did not fire?**
+   - Claude: run `triggerctl install --hook`, then start a new session.
+   - Hermes: run `triggerctl install --hermes`, then start a new session.
+   - Codex: run `triggerctl install --codex`, trust the hook via `/hooks`, then start a new session.
+   - Session triggers are soft: the model may miss a match while focused elsewhere — expected; less reliable than poll-based triggers.
+
+4. **Wrong time / timezone?** Containers often run UTC without tzdata. Use **`export TRIGGERCTL_TZ_OFFSET=8`** (default +8). Applies to `schedule --at`, `poll`/`detect`, hook, and statusLine.
+
+5. **`python -m triggerctl` fails?** System Python may not have the package. Use the **`triggerctl`** command on PATH or **`/opt/conda/bin/python3 -m triggerctl`**. Install/upgrade with **`/opt/conda/bin/python3 -m pip install -e .`** — do not assume bare `pip` exists.
+
+## Uninstall
+
+Full uninstall (hooks, skills, and **all** trigger data — user, project, and `system-triggers/`):
 
 ```bash
-/opt/conda/bin/python3 -m pip uninstall triggerctl   # 用装包时的同一个 Python
-rm /usr/local/bin/triggerctl                       # 或 ~/.local/bin/triggerctl
-# 从 ~/.claude/settings.json 的 hooks.UserPromptSubmit 删掉 triggerctl hook 那条
-rm -rf ~/.claude/skills/triggerctl
+triggerctl uninstall --dry-run    # preview
+triggerctl uninstall --yes        # confirm deletion
+bash uninstall.sh                 # same as uninstall --root all --yes
+```
+
+Partial uninstall:
+
+```bash
+triggerctl uninstall --keep-triggers              # hooks/skills only
+triggerctl uninstall --triggers-only --yes        # trigger files only
+triggerctl uninstall --root user --yes            # user scope only (includes system-triggers)
+triggerctl uninstall --agent claude --yes         # Claude integration only
+triggerctl uninstall --agent codex --yes          # Codex integration only
+```
+
+Uninstall does **not** remove the Python package. To remove it:
+
+```bash
+/opt/conda/bin/python3 -m pip uninstall triggerctl
+rm /usr/local/bin/triggerctl    # or ~/.local/bin/triggerctl
 ```

@@ -60,7 +60,7 @@ def test_statusline_too_many_triggers(tmp_path, monkeypatch):
     root = _root(tmp_path)
     monkeypatch.setattr(hookgen, "all_roots", lambda: [root])
     root.path.mkdir(parents=True, exist_ok=True)
-    for i in range(21):
+    for i in range(6):
         p = root.path / f"t-{i}.md"
         frontmatter.write_file(
             p,
@@ -68,7 +68,25 @@ def test_statusline_too_many_triggers(tmp_path, monkeypatch):
             f"# t-{i}\n",
         )
     line = hookgen.statusline({"cwd": "/a/proj"}, now=datetime(2026, 6, 23, 15, 0))
-    assert "⚠️" in line and "21 triggers" in line and ">20" in line
+    assert "⚠️" in line and "6 context triggers" in line and ">5" in line
+
+
+def test_statusline_time_triggers_not_counted(tmp_path, monkeypatch):
+    from datetime import datetime
+    from triggerctl import frontmatter
+
+    root = _root(tmp_path)
+    monkeypatch.setattr(hookgen, "all_roots", lambda: [root])
+    root.path.mkdir(parents=True, exist_ok=True)
+    for i in range(25):
+        frontmatter.write_file(
+            root.path / f"daily-{i}.md",
+            {"name": f"daily-{i}", "enabled": True, "schedule": {"every": "day", "at": "02:00"}},
+            f"# daily-{i}\n",
+        )
+    line = hookgen.statusline({"cwd": "/a/proj"}, now=datetime(2026, 6, 23, 15, 0))
+    assert "⚠️" not in line
+    assert hookgen.enabled_trigger_count([root]) == 0
 
 
 def test_statusline_under_threshold_no_warn(tmp_path, monkeypatch):

@@ -1,11 +1,15 @@
 ---
 name: triggerctl
-description: Register and manage triggers with triggerctl — run on schedule (time), when a shell probe succeeds (event), or when a semantic session condition matches. Supports AND combos, user/project roots, run-log dedup. Keywords: register trigger, schedule task, when X then Y, auto commit, nightly poll, list/enable/disable triggers, install poll loop. Use when the user wants something to run automatically on time or condition.
+description: >-
+  Register and manage triggers with triggerctl for Claude Code, Hermes Agent, and
+  Codex CLI. Run on schedule (time), when a shell probe succeeds (event), or when
+  a semantic session condition matches. Keywords include register trigger, schedule
+  task, auto commit, nightly poll, list/enable/disable triggers, install poll loop.
 ---
 
 # triggerctl
 
-Manage triggers via `triggerctl` (on PATH after `install.sh`). Engine docs: [triggerctl/README.md](/mnt/afs_toolcall/sunhao4/triggerctl/README.md).
+Manage triggers via `triggerctl` (on PATH after `install.sh`). Engine docs: [README](https://github.com/sunhatSH/triggers/blob/dev/README.md).
 
 > This environment often lacks bare `pip`. Use `bash install.sh` or `/opt/conda/bin/python3 -m pip install -e <repo>`.
 
@@ -22,7 +26,9 @@ Manage triggers via `triggerctl` (on PATH after `install.sh`). Engine docs: [tri
 - **Strict context**: only enabled semantic session triggers with `inject: true` (default) enter the hook. time/event **never** enter context. `inject: false` for statusLine/doctor guardrails.
 - **Roots**: user `~/.claude/triggers/` · project `<repo>/triggers/`
 - **Timezone**: `TRIGGERCTL_TZ_OFFSET=8` (default +8)
-- **Hook replace (experimental)**: `TRIGGERCTL_HOOK_REPLACE=1` in settings env — latest-only injection
+- **Hook replace (experimental, Claude only)**: `TRIGGERCTL_HOOK_REPLACE=1` in settings env
+- **Hermes**: `triggerctl install --hermes` → `pre_llm_call` in `~/.hermes/config.yaml`; `triggerctl hermes-hook`
+- **Codex**: `triggerctl install --codex` → `UserPromptSubmit` in `~/.codex/hooks.json`; `triggerctl codex-hook`
 
 ## Register a trigger
 

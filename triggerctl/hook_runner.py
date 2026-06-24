@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from . import hookgen, transcript
+from .roots import all_roots
 
 
 def _env_flag(name: str) -> bool:
@@ -30,6 +31,27 @@ def read_hook_input() -> Dict[str, Any]:
         return {}
 
 
+def hook_cwd(data: Dict[str, Any]) -> Path | None:
+    """Workspace directory from hook stdin (Claude Code or Hermes)."""
+    for key in ("cwd",):
+        val = data.get(key)
+        if val:
+            return Path(str(val))
+    ws = data.get("workspace") or {}
+    for key in ("current_dir", "cwd"):
+        val = ws.get(key)
+        if val:
+            return Path(str(val))
+    return None
+
+
+def session_context_for_hook(data: Dict[str, Any] | None = None) -> str:
+    """Session trigger block using hook payload cwd for project root discovery."""
+    data = data or {}
+    start = hook_cwd(data)
+    return hookgen.session_context(roots=all_roots(start))
+
+
 def build_hook_output(block: str, *, replace_mode: bool) -> str:
     payload: dict = {
         "hookSpecificOutput": {
@@ -43,10 +65,35 @@ def build_hook_output(block: str, *, replace_mode: bool) -> str:
     return json.dumps(payload, ensure_ascii=False)
 
 
+def build_hermes_output(block: str) -> str:
+    return json.dumps({"context": block}, ensure_ascii=False)
+
+
+def run_codex_hook(data: Dict[str, Any] | None = None) -> int:
+    """Emit session trigger context for Codex UserPromptSubmit (JSON additionalContext)."""
+    data = data if data is not None else read_hook_input()
+    block = session_context_for_hook(data)
+    if not block:
+        return 0
+    print(build_hook_output(block, replace_mode=False))
+    return 0
+
+
+def run_pre_llm_call(data: Dict[str, Any] | None = None) -> int:
+    """Emit session trigger context for Hermes pre_llm_call (JSON {\"context\": ...})."""
+    data = data if data is not None else read_hook_input()
+    block = session_context_for_hook(data)
+    if not block:
+        print("{}")
+        return 0
+    print(build_hermes_output(block))
+    return 0
+
+
 def run_user_prompt_submit(data: Dict[str, Any] | None = None) -> int:
     """Emit session trigger context for the current user turn."""
     data = data if data is not None else read_hook_input()
-    block = hookgen.session_context()
+    block = session_context_for_hook(data)
     if not block:
         return 0
 

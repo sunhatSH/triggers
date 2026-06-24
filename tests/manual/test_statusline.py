@@ -2,9 +2,9 @@
 """Test statusLine output (rest window + too-many-triggers warning).
 
 Usage (from triggerctl repo root):
-  python3 scripts/test-statusline.py           # synthetic + live checks
-  python3 scripts/test-statusline.py --live    # live environment only
-  python3 scripts/test-statusline.py --demo    # print example lines only
+  python3 tests/manual/test_statusline.py           # synthetic + live checks
+  python3 tests/manual/test_statusline.py --live    # live environment only
+  python3 tests/manual/test_statusline.py --demo    # print example lines only
 
 Does not modify your trigger registry.
 """
@@ -18,7 +18,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
@@ -48,11 +48,11 @@ def run_synthetic_tests() -> bool:
     ok = True
 
     with tempfile.TemporaryDirectory(prefix="triggerctl-statusline-") as tmp:
-        over = _seed_triggers(Path(tmp) / "over", 21)
+        over = _seed_triggers(Path(tmp) / "over", 6)
         under = _seed_triggers(Path(tmp) / "under", 3)
 
         cases = [
-            ("too many (21)", over, datetime(2026, 6, 24, 15, 0), True, False),
+            ("too many (6)", over, datetime(2026, 6, 24, 15, 0), True, False),
             ("under threshold (3)", under, datetime(2026, 6, 24, 15, 0), False, False),
             ("rest window", under, datetime(2026, 6, 24, 23, 30), False, True),
             ("rest + too many", over, datetime(2026, 6, 24, 23, 30), True, True),
@@ -82,7 +82,7 @@ def run_live_checks() -> bool:
 
     count = hookgen.enabled_trigger_count()
     threshold = hookgen.TOO_MANY_THRESHOLD
-    print(f"  enabled triggers (all roots): {count}  (threshold {threshold})")
+    print(f"  context-injected triggers (all roots): {count}  (threshold {threshold})")
 
     payload = json.dumps(
         {
@@ -127,10 +127,10 @@ def print_demo() -> None:
     data = {"model": {"display_name": "Opus"}, "cwd": "/path/sunhao4"}
     with tempfile.TemporaryDirectory() as tmp:
         for label, now, n in [
-            ("normal", datetime(2026, 6, 24, 15, 0), 5),
-            ("rest window", datetime(2026, 6, 24, 23, 15), 5),
-            ("too many", datetime(2026, 6, 24, 15, 0), 23),
-            ("rest + too many", datetime(2026, 6, 24, 23, 15), 23),
+            ("normal", datetime(2026, 6, 24, 15, 0), 3),
+            ("rest window", datetime(2026, 6, 24, 23, 15), 3),
+            ("too many", datetime(2026, 6, 24, 15, 0), 6),
+            ("rest + too many", datetime(2026, 6, 24, 23, 15), 6),
         ]:
             root = _seed_triggers(Path(tmp) / label, n)
             line = hookgen.statusline(data, now=now, roots=[root])

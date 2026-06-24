@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import List, Optional
 
 from . import registry
+from . import codex as codex_mod
+from . import hermes as hermes_mod
 from .model import discover
 from .roots import Root, all_roots, project_root, user_root
 from .hookgen import TOO_MANY_THRESHOLD
@@ -112,13 +114,71 @@ def run(start: Optional[Path] = None) -> Report:
                 hook_ok = True
                 break
     if hook_ok:
-        rep.add("UserPromptSubmit hook", "ok", "semantic session triggers configured")
+        rep.add("Claude UserPromptSubmit hook", "ok", "semantic session triggers configured")
     else:
         rep.add(
-            "UserPromptSubmit hook",
+            "Claude UserPromptSubmit hook",
             "warn",
             "not configured → triggerctl install --hook",
         )
+
+    try:
+        _, hcfg = hermes_mod.load_config()
+        if hermes_mod.hook_installed(hcfg):
+            rep.add("Hermes pre_llm_call hook", "ok", f"configured in {hermes_mod.config_path()}")
+        elif shutil.which("hermes"):
+            rep.add(
+                "Hermes pre_llm_call hook",
+                "warn",
+                "Hermes found but hook missing → triggerctl install --hermes",
+            )
+        else:
+            rep.add(
+                "Hermes pre_llm_call hook",
+                "info",
+                "optional → triggerctl install --hermes (Hermes Agent)",
+            )
+    except Exception as exc:  # noqa: BLE001
+        rep.add("Hermes pre_llm_call hook", "warn", f"could not read Hermes config: {exc}")
+
+    if shutil.which("hermes"):
+        if hermes_mod.skill_installed():
+            rep.add("Hermes triggerctl skill", "ok", str(hermes_mod.skill_path()))
+        else:
+            rep.add(
+                "Hermes triggerctl skill",
+                "info",
+                "optional → triggerctl install --hermes",
+            )
+
+    try:
+        _, cdata = codex_mod.load_hooks()
+        if codex_mod.hook_installed(cdata):
+            rep.add("Codex UserPromptSubmit hook", "ok", f"configured in {codex_mod.hooks_json_path()}")
+        elif shutil.which("codex"):
+            rep.add(
+                "Codex UserPromptSubmit hook",
+                "warn",
+                "Codex found but hook missing → triggerctl install --codex",
+            )
+        else:
+            rep.add(
+                "Codex UserPromptSubmit hook",
+                "info",
+                "optional → triggerctl install --codex (Codex CLI)",
+            )
+    except Exception as exc:  # noqa: BLE001
+        rep.add("Codex UserPromptSubmit hook", "warn", f"could not read Codex hooks: {exc}")
+
+    if shutil.which("codex"):
+        if codex_mod.skill_installed():
+            rep.add("Codex triggerctl skill", "ok", str(codex_mod.skill_path()))
+        else:
+            rep.add(
+                "Codex triggerctl skill",
+                "info",
+                "optional → triggerctl install --codex",
+            )
 
     env = data.get("env") or {}
     if str(env.get("TRIGGERCTL_HOOK_REPLACE", "")).lower() in ("1", "true", "yes"):
@@ -177,8 +237,8 @@ def run(start: Optional[Path] = None) -> Report:
         else:
             rep.add(f"{label} index", "ok", str(root.index_file))
 
-        enabled = [t for t in discover(root) if t.enabled]
-        poll_types = [t for t in enabled if t.kind in ("time", "event", "time+event")]
+        in_context = [t for t in discover(root) if t.in_context]
+        poll_types = [t for t in discover(root) if t.enabled and t.kind in ("time", "event", "time+event")]
         if poll_types:
             if _poll_running(root):
                 rep.add(f"{label} poll loop", "ok", "run-loop.sh running")
@@ -189,11 +249,11 @@ def run(start: Optional[Path] = None) -> Report:
                     f"{len(poll_types)} time/event trigger(s) but no poll loop → triggerctl install --loop",
                 )
 
-        if len(enabled) > TOO_MANY_THRESHOLD:
+        if len(in_context) > TOO_MANY_THRESHOLD:
             rep.add(
-                f"{label} trigger count",
+                f"{label} context trigger count",
                 "warn",
-                f"{len(enabled)} enabled (>{TOO_MANY_THRESHOLD}) — also shown in statusLine → triggerctl disable <name>",
+                f"{len(in_context)} hook-eligible (>{TOO_MANY_THRESHOLD}) — also in statusLine → triggerctl disable <name>",
             )
 
     tz = os.environ.get("TRIGGERCTL_TZ_OFFSET")

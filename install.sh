@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
-# triggerctl install — embed triggers into Claude Code.
+# triggerctl install — embed triggers into Claude Code, Hermes Agent, and/or Codex CLI.
 #
 # 1) Install triggerctl (editable) with a Python that has pip; link onto PATH
 # 2) Initialize user registry (includes default guardrail trigger)
-# 3) Install triggerctl skill
-# 4) Write UserPromptSubmit hook + statusLine
-# 5) Enable experimental hook replace env vars in settings.json
+# 3) Install triggerctl skill + hooks per agent
 #
 # Usage:  bash install.sh
-# Options:  PYTHON=/opt/conda/bin/python3 bash install.sh
-#           PREFIX_BIN=~/.local/bin bash install.sh
+# Options:
+#   AGENT=claude|hermes|codex|all   (default: all)
+#   PYTHON=/opt/conda/bin/python3 bash install.sh
+#   PREFIX_BIN=~/.local/bin bash install.sh
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_DIR="${CLAUDE_DIR:-$HOME/.claude}"
+AGENT="${AGENT:-all}"
 
 _find_python() {
   if [ -n "${PYTHON:-}" ]; then
@@ -48,8 +49,9 @@ EOF
   exit 1
 fi
 
-echo "==> 1/5 Install triggerctl ($PY -m pip install -e)"
+echo "==> Install triggerctl ($PY -m pip install -e)"
 echo "    Python: $PY"
+echo "    AGENT: $AGENT"
 "$PY" -m pip install -e "$REPO_DIR" -q
 
 TCTL="$("$PY" - <<'EOF'
@@ -80,20 +82,17 @@ else
 fi
 case ":$PATH:" in *":$BIN_DIR:"*) :;; *) echo "    ⚠️ $BIN_DIR not on PATH; add it";; esac
 
-echo "==> 2/5 Initialize user triggers root"
+echo "==> Initialize user triggers root"
 "$TCTL" init --root user
 
-echo "==> 3/5 Install triggerctl skill"
-mkdir -p "$CLAUDE_DIR/skills/triggerctl"
-cp "$REPO_DIR/skill/SKILL.md" "$CLAUDE_DIR/skills/triggerctl/SKILL.md"
-echo "    -> $CLAUDE_DIR/skills/triggerctl/SKILL.md"
-
-echo "==> 4/5 Install UserPromptSubmit hook (settings.json)"
-"$TCTL" install --hook
-
-echo "==> 5/5 Install statusLine + hook replace env"
-"$TCTL" install --statusline
-"$PY" - <<'PY'
+install_claude() {
+  echo "==> Claude Code: skill + UserPromptSubmit hook + statusLine"
+  mkdir -p "$CLAUDE_DIR/skills/triggerctl"
+  cp "$REPO_DIR/skill/SKILL.md" "$CLAUDE_DIR/skills/triggerctl/SKILL.md"
+  echo "    skill -> $CLAUDE_DIR/skills/triggerctl/SKILL.md"
+  "$TCTL" install --hook
+  "$TCTL" install --statusline
+  "$PY" - <<'PY'
 import json
 from pathlib import Path
 p = Path.home() / ".claude" / "settings.json"
@@ -105,12 +104,34 @@ env.setdefault("TRIGGERCTL_HOOK_REPLACE", "1")
 env.setdefault("TRIGGERCTL_HOOK_JSON", "1")
 env.setdefault("TRIGGERCTL_TZ_OFFSET", "8")
 p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-print("    set TRIGGERCTL_HOOK_REPLACE=1, TRIGGERCTL_HOOK_JSON=1 in settings env")
+print("    env: TRIGGERCTL_HOOK_REPLACE=1, TRIGGERCTL_HOOK_JSON=1, TRIGGERCTL_TZ_OFFSET=8")
 PY
+}
+
+install_hermes() {
+  echo "==> Hermes Agent: skill + pre_llm_call hook"
+  "$TCTL" install --hermes
+}
+
+install_codex() {
+  echo "==> Codex CLI: skill + UserPromptSubmit hook"
+  "$TCTL" install --codex
+}
+
+case "$AGENT" in
+  claude) install_claude ;;
+  hermes) install_hermes ;;
+  codex) install_codex ;;
+  all) install_claude; install_hermes; install_codex ;;
+  *)
+    echo "!! Unknown AGENT=$AGENT (use claude, hermes, codex, or all)" >&2
+    exit 1
+    ;;
+esac
 
 cat <<EOF
 
-✅ Done (Python: $PY).
+✅ Done (Python: $PY, AGENT: $AGENT).
 - triggerctl --help
 - triggerctl doctor
 - triggerctl list
@@ -119,5 +140,5 @@ cat <<EOF
 Upgrade later:
    $PY -m pip install -e $REPO_DIR
 
-⚠️ Hook/skill/triggers load at session start — open a new Claude session to verify.
+⚠️ Start a new Claude, Hermes, and/or Codex session to verify hooks and skills.
 EOF
