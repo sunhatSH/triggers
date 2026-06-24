@@ -350,39 +350,52 @@ def cmd_remove(name: str, selector: Optional[str]) -> int:
         print(f"{name} 是 locked（不可关闭/删除）。如确需删除，先编辑其文件去掉 `locked: true` 再 remove。",
               file=sys.stderr)
         return 2
-    # Read frontmatter before unlinking — check for statusline: true
-    needs_statusline_cleanup = False
+    cleanup_actions: List[str] = []
     try:
         meta, _ = frontmatter.read_file(t.path)
-        if bool(meta.get("statusline", False)):
-            needs_statusline_cleanup = True
+        raw = meta.get("cleanup", [])
+        if isinstance(raw, str):
+            cleanup_actions = [raw]
+        elif isinstance(raw, list):
+            cleanup_actions = [str(a) for a in raw]
     except Exception:
         pass
     t.path.unlink()
     registry.sync(t.root)
-    if needs_statusline_cleanup:
-        _remove_statusline_from_settings()
+    cleanups_done: List[str] = []
+    for action in cleanup_actions:
+        if _run_cleanup_action(action):
+            cleanups_done.append(action)
     msg = f"已删除 {name} ({t.path})"
-    if needs_statusline_cleanup:
-        msg += " + 已清理 statusLine"
+    if cleanups_done:
+        msg += " + " + "、".join(cleanups_done)
     print(msg)
     return 0
 
 
-def _remove_statusline_from_settings() -> None:
-    """Remove the statusLine entry from ~/.claude/settings.json if present."""
+def _run_cleanup_action(action: str) -> bool:
+    """Execute a single cleanup action declared by the trigger's frontmatter.
+
+    Recognized action names:
+      statusline  — remove statusLine from ~/.claude/settings.json
+      (more actions to be added by future triggers via frontmatter)
+    """
     import json
-    settings = Path.home() / ".claude" / "settings.json"
-    if not settings.is_file():
-        return
-    try:
-        data = json.loads(settings.read_text(encoding="utf-8"))
-    except Exception:
-        return
-    if "statusLine" not in data:
-        return
-    del data["statusLine"]
-    settings.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if action == "statusline":
+        settings = Path.home() / ".claude" / "settings.json"
+        if not settings.is_file():
+            return True  # nothing to clean = success
+        try:
+            data = json.loads(settings.read_text(encoding="utf-8"))
+        except Exception:
+            return False
+        if "statusLine" not in data:
+            return True
+        del data["statusLine"]
+        settings.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        return True
+    # Unknown action — log and skip (backward compatible)
+    return False
 
 
 def _set_enabled_text(path: Path, value: bool) -> None:

@@ -174,10 +174,15 @@ def _ensure_statusline_in_settings() -> None:
 
 
 def _trigger_needs_statusline(path: Path) -> bool:
-    """Check frontmatter for statusline: true — signal to auto-configure settings.json."""
+    """Check frontmatter cleanup for statusline — signal to auto-configure settings.json."""
     try:
         meta, _ = frontmatter.read_file(path)
-        return bool(meta.get("statusline", False))
+        raw = meta.get("cleanup", [])
+        if isinstance(raw, str):
+            return raw == "statusline"
+        if isinstance(raw, list):
+            return "statusline" in raw
+        return False
     except Exception:
         return False
 
