@@ -1,20 +1,7 @@
 """CLI: install triggers from library."""
-from pathlib import Path
+from conftest import FIXTURE_LIB
 
-import pytest
-
-from triggerctl import commands, library as lib
-
-FIXTURE_LIB = Path(__file__).resolve().parents[2] / "trigger-library"
-
-
-@pytest.fixture
-def synced_library(tmp_path, monkeypatch):
-    dest = tmp_path / "library"
-    monkeypatch.setattr("triggerctl.paths.local_library_dir", lambda: dest)
-    monkeypatch.setattr("triggerctl.library.local_library_dir", lambda: dest)
-    lib.sync_library(str(FIXTURE_LIB))
-    return dest
+from triggerctl import commands
 
 
 def test_install_by_name(synced_library, tmp_path, monkeypatch, capsys):

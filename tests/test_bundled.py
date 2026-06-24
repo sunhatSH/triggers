@@ -1,9 +1,7 @@
 """Bundled optional triggers — not auto-installed on init."""
-from pathlib import Path
+from conftest import FIXTURE_LIB
 
 from triggerctl import package
-
-FIXTURE_LIB = Path(__file__).resolve().parents[2] / "trigger-library"
 
 
 def test_list_library_session():

@@ -1,11 +1,9 @@
 """Tests for install-from-source and lock file."""
-from pathlib import Path
+from conftest import FIXTURE_LIB
 
 from triggerctl import commands, lockfile
 from triggerctl.model import discover, find
 from triggerctl.roots import Root
-
-FIXTURE_LIB = Path(__file__).resolve().parents[2] / "trigger-library"
 
 
 def _root(tmp_path):

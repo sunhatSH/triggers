@@ -1,21 +1,5 @@
 """Merged list: installed + store templates with status column."""
-from pathlib import Path
-
-import pytest
-
 from triggerctl import commands
-from triggerctl import library as lib
-
-FIXTURE_LIB = Path(__file__).resolve().parents[2] / "trigger-library"
-
-
-@pytest.fixture
-def synced_library(tmp_path, monkeypatch):
-    dest = tmp_path / "library"
-    monkeypatch.setattr("triggerctl.paths.local_library_dir", lambda: dest)
-    monkeypatch.setattr("triggerctl.library.local_library_dir", lambda: dest)
-    lib.sync_library(str(FIXTURE_LIB))
-    return dest
 
 
 def test_list_merged_statuses(synced_library, tmp_path, monkeypatch, capsys):

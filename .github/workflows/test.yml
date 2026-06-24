@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: sunhatSH/trigger-library
-          path: ../trigger-library
+          path: tests/fixtures/trigger-library
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
