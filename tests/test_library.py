@@ -1,21 +1,7 @@
 """Official trigger library — separate repo, fixed local sync dir."""
-from pathlib import Path
-
-import pytest
+from conftest import FIXTURE_LIB
 
 from triggerctl import library as lib
-from triggerctl.paths import local_library_dir
-
-FIXTURE_LIB = Path(__file__).resolve().parents[2] / "trigger-library"
-
-
-@pytest.fixture
-def synced_library(tmp_path, monkeypatch):
-    dest = tmp_path / "library"
-    monkeypatch.setattr("triggerctl.paths.local_library_dir", lambda: dest)
-    monkeypatch.setattr("triggerctl.library.local_library_dir", lambda: dest)
-    lib.sync_library(str(FIXTURE_LIB))
-    return dest
 
 
 def test_sync_local(synced_library):

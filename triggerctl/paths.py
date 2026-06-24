@@ -22,7 +22,7 @@ def local_library_dir() -> Path:
 
 
 def default_library_remote() -> str:
-    """Default remote used by `triggerctl fetch` (separate repo from triggerctl)."""
+    """Default remote used by implicit library sync on `triggerctl install` (separate repo)."""
     return os.environ.get("TRIGGERCTL_LIBRARY_REMOTE", "sunhatSH/trigger-library").strip()
 
 

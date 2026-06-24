@@ -5,37 +5,7 @@ succeeds, or when a semantic session condition matches. Inspired by
 [vercel-labs/skills](https://github.com/vercel-labs/skills) (frontmatter as source
 of truth, generated index, multiple registry roots).
 
-## Design
-
-- **Two layers** (latency vs cost):
-  - **Detection** (cheap Python, no model): evaluates `schedule` + `probe`, dedups via run-log.
-  - **Execution** (model): calls `claude -p`, `hermes chat -q`, or `codex exec` only for DUE triggers.
-- **Types inferred from frontmatter**: `schedule` only → time; `probe` only → event;
-  both → AND combo; `when` only (no schedule/probe) → semantic session (hook).
-- **Source of truth** = each trigger `.md` file; `TRIGGERS.md` is an **ops index**
-  (not injected into agent context).
-- **Registry roots**:
-  - User: `~/.claude/triggers/`
-  - Project: `<project>/triggers/`
-- **Idempotency**: `.state/run-log.jsonl` keyed by `(name, key)`.
-- **Optional library**: separate [trigger-library](https://github.com/sunhatSH/trigger-library) repo; synced to `~/.local/share/triggerctl/library`. `init` only seeds the locked guardrail.
-- **>5 warning**: counts **hook-eligible** session triggers only (`in_context`), not time/event or `inject: false`.
-
-## Project layout
-
-```
-triggerctl/              # engine only (GitHub: sunhatSH/triggers)
-├── triggerctl/          # Python package + CLI
-├── skill/               # agent skill
-├── docs/ tests/ install.sh
-└── library/README.md    # pointer → separate trigger-library repo
-
-trigger-library/           # separate repo: sunhatSH/trigger-library
-├── manifest.yaml
-├── session/ poll/
-```
-
-## Install
+## Quick start
 
 **One line (curl + git):**
 
@@ -43,12 +13,11 @@ trigger-library/           # separate repo: sunhatSH/trigger-library
 curl -fsSL https://raw.githubusercontent.com/sunhatSH/triggers/main/install-remote.sh | bash
 ```
 
-Then sync the optional trigger library (not auto-installed into your registry):
+Then install optional triggers from the library:
 
 ```bash
-triggerctl fetch
 triggerctl list
-triggerctl add rest-reminder auto-commit-push --store
+triggerctl install rest-reminder auto-commit-push
 ```
 
 Clones to `~/.local/share/triggerctl/repo` and runs `install.sh`. Options:
@@ -104,26 +73,15 @@ See [docs/integrations/hermes.md](docs/integrations/hermes.md).
 ### Codex CLI
 
 ```bash
-triggerctl install --codex        # hook + skill
-triggerctl install --codex-hook   # hook only
+triggerctl install --codex         # hook + skill
+triggerctl install --codex-hook    # hook only
 ```
 
 See [docs/integrations/codex.md](docs/integrations/codex.md).
 
-## Context policy
-
-| Kind | Handler | In agent context? |
-|---|---|---|
-| time (`schedule`) | `triggerctl poll` | **No** |
-| event (`probe`) | `triggerctl poll` | **No** |
-| combo | `triggerctl poll` | **No** |
-| semantic session (`when` only) | UserPromptSubmit hook (Claude/Codex) / `pre_llm_call` (Hermes) | **Yes** |
-| `inject: false` | doctor / statusLine | **No** (rest → 🌙; >5 **context** triggers → ⚠️ in status bar) |
-
 ## Docs
 
-- [USAGE.md](USAGE.md) — usage and troubleshooting
-- [docs/README.md](docs/README.md) — documentation index
+- [USAGE.md](USAGE.md) — command reference
 - [docs/design.md](docs/design.md) — architecture
 - [trigger-library](https://github.com/sunhatSH/trigger-library) — optional templates (separate repo)
 - [skill/SKILL.md](skill/SKILL.md) — agent skill
@@ -132,26 +90,20 @@ See [docs/integrations/codex.md](docs/integrations/codex.md).
 
 | Command | Purpose |
 |---|---|
-| `triggerctl fetch [--source SRC]` | Sync store → `~/.local/share/triggerctl/library` |
+| `triggerctl install <name>` | Install trigger from template library (auto-syncs on first use) |
+| `triggerctl install <name> --from PATH` | Install from GitHub / git URL / local path |
+| `triggerctl install --all` | Install all from local default library (auto-syncs on first use) |
+| `triggerctl install --all --from PATH` | Install all triggers under PATH |
+| `triggerctl install --hook` / `--loop` / … | Agent integration (hooks, poll loop, statusLine) |
 | `triggerctl list [--root all]` | List installed + store templates (状态: 未安装/已启用/已关闭) |
-| `triggerctl add <name> --store` | Install from local store by name |
+| `triggerctl add <name> [--when \| --probe \| --every]` | Create a new trigger |
+| `triggerctl enable/disable <name>` | Toggle installed trigger |
 | `triggerctl init [--root user\|project]` | Initialize registry root |
-| `triggerctl add <name> [--every \| --probe \| --when]` | Register trigger |
-| `triggerctl add --from <SOURCE> [--list]` | Install from Git/local |
 | `triggerctl update` | Update from lock file |
 | `triggerctl doctor` | Health check |
 | `triggerctl validate [--probe-test]` | Validate frontmatter |
 | `triggerctl sync` | Regenerate TRIGGERS.md ops index |
 | `triggerctl detect` / `poll` | Detection / execution |
-| `triggerctl install --hook` | Claude Code UserPromptSubmit injection |
-| `triggerctl install --hermes` | Full Hermes setup (hook + skill) |
-| `triggerctl install --hermes-hook` | Hermes pre_llm_call hook only |
-| `triggerctl install --codex` | Full Codex setup (hook + skill) |
-| `triggerctl install --codex-hook` | Codex UserPromptSubmit hook only |
-| `triggerctl hermes-hook` | Hermes hook entrypoint (JSON `context`) |
-| `triggerctl codex-hook` | Codex hook entrypoint (JSON `additionalContext`) |
-| `triggerctl install --statusline` | Status bar |
-| `triggerctl install --loop` | Background poll loop |
 | `triggerctl uninstall [--yes]` | Remove hooks/skills + user/project/system triggers |
 | `bash uninstall.sh` | Same as `uninstall --root all --yes` |
 

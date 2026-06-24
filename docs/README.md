@@ -7,7 +7,7 @@
 | [design.md](design.md) | Architecture (current) |
 | [integrations/hermes.md](integrations/hermes.md) | Hermes Agent setup |
 | [integrations/codex.md](integrations/codex.md) | Codex CLI setup |
-| [../library/README.md](../library/README.md) | Separate trigger store (`triggerctl fetch`, `list`) |
+| [../library/README.md](../library/README.md) | Separate trigger store (`triggerctl install <name>`) |
 | [proposals/](proposals/) | Upstream / experiment notes |
 | [admin/](admin/) | Repository maintenance (branch protection) |
 | [archive/](archive/) | Superseded design notes |

@@ -104,16 +104,33 @@ def sync_library(source: Optional[str] = None) -> Path:
     return dest
 
 
-def _resolve_base(source: Optional[str]) -> Path:
-    """List/install base path: default = fixed local dir; --source = ad-hoc path."""
+def _library_present(dest: Path) -> bool:
+    return (dest / "manifest.yaml").is_file() or any(dest.rglob("*.md"))
+
+
+def ensure_library(source: Optional[str] = None) -> Path:
+    """Return library base; sync default remote into local dir when missing."""
     if source:
         spec = package.parse_source(source.strip())
         base, _ = package.materialize(spec)
         return base
     dest = local_library_dir()
-    if not (dest / "manifest.yaml").is_file() and not any(dest.rglob("*.md")):
+    if _library_present(dest):
+        return dest
+    sync_library(None)
+    return dest
+
+
+def _resolve_base(source: Optional[str]) -> Path:
+    """List/install base path: default = fixed local dir; source = ad-hoc path."""
+    if source:
+        spec = package.parse_source(source.strip())
+        base, _ = package.materialize(spec)
+        return base
+    dest = local_library_dir()
+    if not _library_present(dest):
         raise FileNotFoundError(
-            f"Local library missing at {dest}. Run: triggerctl fetch"
+            f"模板库尚未同步。运行: triggerctl install <name>"
         )
     return dest
 

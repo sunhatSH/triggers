@@ -1,21 +1,5 @@
 """Merged list: installed + store templates with status column."""
-from pathlib import Path
-
-import pytest
-
 from triggerctl import commands
-from triggerctl import library as lib
-
-FIXTURE_LIB = Path(__file__).resolve().parents[2] / "trigger-library"
-
-
-@pytest.fixture
-def synced_library(tmp_path, monkeypatch):
-    dest = tmp_path / "library"
-    monkeypatch.setattr("triggerctl.paths.local_library_dir", lambda: dest)
-    monkeypatch.setattr("triggerctl.library.local_library_dir", lambda: dest)
-    lib.sync_library(str(FIXTURE_LIB))
-    return dest
 
 
 def test_list_merged_statuses(synced_library, tmp_path, monkeypatch, capsys):
@@ -34,9 +18,7 @@ def test_list_merged_statuses(synced_library, tmp_path, monkeypatch, capsys):
     assert "rest-reminder" in out
 
     monkeypatch.setattr(package, "primary", lambda sel: user)
-    from triggerctl import library as lib
-
-    lib.install_names(["rest-reminder"], "user", False)
+    commands.cmd_install_triggers(["rest-reminder"], None, False, False, None, False)
     commands.cmd_list(None)
     out2 = capsys.readouterr().out
     assert "rest-reminder      session  已启用" in out2
