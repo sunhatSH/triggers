@@ -18,7 +18,7 @@ def test_install_local_example(tmp_path, monkeypatch):
 
     monkeypatch.setattr(package, "primary", lambda sel: root)
     repo = FIXTURE_LIB / "poll" / "daily-backup.md"
-    rc = commands.cmd_add_from(str(repo), None, None, False, False)
+    rc = commands.cmd_install_triggers([], None, False, False, str(repo), False)
     assert rc == 0
     t = find([root], "daily-backup")
     assert t is not None and t.kind == "time"
@@ -33,8 +33,8 @@ def test_install_skip_without_force(tmp_path, monkeypatch):
 
     monkeypatch.setattr(package, "primary", lambda sel: root)
     repo = FIXTURE_LIB / "poll" / "daily-backup.md"
-    commands.cmd_add_from(str(repo), None, None, False, False)
-    rc = commands.cmd_add_from(str(repo), None, None, False, False)
+    commands.cmd_install_triggers([], None, False, False, str(repo), False)
+    rc = commands.cmd_install_triggers([], None, False, False, str(repo), False)
     assert rc == 0
     assert len(discover(root)) == 1
 

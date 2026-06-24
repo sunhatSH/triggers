@@ -30,7 +30,18 @@ Manage triggers via `triggerctl` (on PATH after `install.sh`). Engine docs: [REA
 - **Hermes**: `triggerctl install --hermes` → `pre_llm_call` in `~/.hermes/config.yaml`; `triggerctl hermes-hook`
 - **Codex**: `triggerctl install --codex` → `UserPromptSubmit` in `~/.codex/hooks.json`; `triggerctl codex-hook`
 
-## Register a trigger
+## Install a trigger (from library)
+
+```bash
+triggerctl list
+triggerctl install rest-reminder
+triggerctl install rest-reminder auto-commit-push --root user
+triggerctl install rest-reminder --from sunhatSH/trigger-library
+```
+
+Installed triggers are **enabled by default**. Use `enable` / `disable` to toggle.
+
+## Create a trigger
 
 1. Pick root: `--root user` (global) or `--root project`
 2. `triggerctl add …` (rebuilds ops index)
@@ -47,18 +58,15 @@ triggerctl add auto-commit --root user --when 'when a feature is complete: small
 
 ```bash
 triggerctl list [--root all]
-triggerctl fetch [--source SRC]
-triggerctl list
-triggerctl add <name> --store [--source SRC]
-triggerctl add --all --store
+triggerctl install <name> [--from PATH] [--all]   # --all: local lib; --all --from PATH: all there
 triggerctl enable/disable <name>
 triggerctl remove <name>
-triggerctl add --from <SOURCE> [--list]
 triggerctl update
 triggerctl doctor
 triggerctl validate [--probe-test]
 triggerctl detect / poll
 triggerctl sync
+triggerctl install --hook / --loop / --statusline
 ```
 
 ## Background poll (time/event)

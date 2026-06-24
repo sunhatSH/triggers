@@ -1,5 +1,1 @@
-# Moved → separate `trigger-library` repo
-
-See **[sunhatSH/trigger-library](https://github.com/sunhatSH/trigger-library)**.
-
-Local copy: `~/.local/share/triggerctl/library` via `triggerctl fetch`.
+Local copy: `~/.local/share/triggerctl/library` (auto-synced on first `triggerctl install <name>`).

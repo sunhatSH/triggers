@@ -66,7 +66,7 @@ See [docs/integrations/codex.md](docs/integrations/codex.md) for Codex details.
 | User | `~/.claude/triggers/` | Global, all projects |
 | Project | `<project>/triggers/` | Committed with the repo |
 | System | `~/.claude/triggers/system-triggers/` | Guardrails (e.g. `too-many-triggers-warning`; only this one is seeded on `init`) |
-| Library | `~/.local/share/triggerctl/library` | Synced from [trigger-library](https://github.com/sunhatSH/trigger-library); list/install default here |
+| Library | `~/.local/share/triggerctl/library` | Auto-synced on first `triggerctl install <name>` from [trigger-library](https://github.com/sunhatSH/trigger-library) |
 
 `TRIGGERS.md` is an **ops index only** — not injected into agent context.
 
@@ -79,38 +79,37 @@ See [docs/integrations/codex.md](docs/integrations/codex.md) for Codex details.
 **B. CLI**:
 
 ```bash
-triggerctl list [--root all|user|project]      # list (🔒 = locked)
-triggerctl add <name> --root user [options]    # register (see below)
-triggerctl add --from <SOURCE> [--list]        # install from Git/local
-triggerctl update [--root user] [--force]      # update from triggers-lock.json
-triggerctl doctor                              # health check: PATH, hooks, index, poll
-triggerctl validate [--probe-test]             # validate frontmatter, duplicates, stale index
-triggerctl enable / disable / remove <name>    # toggle or delete one trigger
-triggerctl detect                              # cheap detection: what is DUE (no model)
-triggerctl poll [--dry-run]                    # detect + execute DUE triggers via agent CLI
-triggerctl status -n 20                        # run-log
-triggerctl sync                                # regenerate TRIGGERS.md from .md files
-triggerctl hook                                # session block (Claude UserPromptSubmit)
-triggerctl hermes-hook                         # session JSON (Hermes pre_llm_call)
-triggerctl codex-hook                          # session JSON (Codex UserPromptSubmit)
+triggerctl list [--root all|user|project]
+triggerctl install <name> [name...] [--root user]   # from template library (enabled by default)
+triggerctl install <name> --from <PATH>             # from GitHub / git URL / local path
+triggerctl install --all [--root user]                  # all in local default library
+triggerctl install --all --from <PATH> [--root user]    # all under PATH
+triggerctl install --from <PATH> --list             # preview triggers at PATH
+triggerctl add <name> --root user [options]         # create new trigger (see below)
+triggerctl enable / disable <name>                  # toggle installed trigger
+triggerctl remove <name>
+triggerctl update [--root user] [--force]
+triggerctl doctor
+triggerctl validate [--probe-test]
+triggerctl detect
+triggerctl poll [--dry-run]
+triggerctl status -n 20
+triggerctl sync
+triggerctl install --hook / --loop / --statusline   # agent integration (not triggers)
 ```
 
-Install from Git or local paths (similar to `skills add`):
+Install from the template library:
 
 ```bash
-triggerctl fetch
 triggerctl list
-triggerctl add rest-reminder auto-commit-push --store --root user
-
-# ad-hoc install source:
-triggerctl add rest-reminder --store --source /path/to/trigger-library
-
-# legacy:
-triggerctl add --from sunhatSH/trigger-library/session/rest-reminder.md --root user
+triggerctl install rest-reminder auto-commit-push --root user
+triggerctl install rest-reminder --from sunhatSH/trigger-library
+triggerctl install --all --from sunhatSH/trigger-library --root user
+triggerctl install --from /path/to/trigger-library/session/rest-reminder.md
 triggerctl update --root user
 ```
 
-`SOURCE`: `owner/repo[/path]`, git URL, local directory, or a single `.md`. Installs are recorded in `triggers-lock.json`.
+`PATH`: `owner/repo[/path]`, git URL, local directory, or a single `.md`. Installs are recorded in `triggers-lock.json`.
 
 Registration examples:
 

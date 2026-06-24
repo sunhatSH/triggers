@@ -34,9 +34,7 @@ def test_list_merged_statuses(synced_library, tmp_path, monkeypatch, capsys):
     assert "rest-reminder" in out
 
     monkeypatch.setattr(package, "primary", lambda sel: user)
-    from triggerctl import library as lib
-
-    lib.install_names(["rest-reminder"], "user", False)
+    commands.cmd_install_triggers(["rest-reminder"], None, False, False, None, False)
     commands.cmd_list(None)
     out2 = capsys.readouterr().out
     assert "rest-reminder      session  已启用" in out2

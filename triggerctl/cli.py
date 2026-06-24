@@ -13,6 +13,25 @@ def _add_root_arg(p):
                    help="user | project | all | <path>（默认：写命令=user，读命令=all）")
 
 
+def _install_infra_flags(args) -> bool:
+    return any(
+        (
+            args.hook,
+            args.hermes,
+            args.codex,
+            args.hermes_hook,
+            args.codex_hook,
+            args.statusline,
+            args.cron,
+            args.loop,
+        )
+    )
+
+
+def _install_trigger_mode(args) -> bool:
+    return bool(args.names or args.install_all or args.source or args.list_only)
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="triggerctl",
@@ -23,19 +42,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("init", help="初始化一个注册根")
     _add_root_arg(p)
 
-    p = sub.add_parser("add", help="注册新触发器，或 --from / --store 从库安装")
-    p.add_argument("names", nargs="*", help="触发器名称")
+    p = sub.add_parser("add", help="注册/制作新触发器")
+    p.add_argument("name", help="触发器名称")
     _add_root_arg(p)
-    p.add_argument("--from", dest="source", metavar="SOURCE",
-                   help="从 GitHub(owner/repo[/path])、git URL 或本地路径安装")
-    p.add_argument("--list", dest="list_only", action="store_true",
-                   help="配合 --from：只列出 SOURCE 中的触发器，不安装")
-    p.add_argument("--store", action="store_true",
-                   help="从本地库（~/.local/share/triggerctl/library）按名称安装")
-    p.add_argument("--all", dest="install_all", action="store_true",
-                   help="配合 --store：安装库中全部触发器")
-    p.add_argument("--source", dest="store_source", metavar="SOURCE",
-                   help="配合 --store：临时指定库位置")
     p.add_argument("--category", help="子目录分组（生成 <category>-triggers/）")
     p.add_argument("--every", choices=["day", "hour", "week", "month"], help="定时：周期")
     p.add_argument("--at", help='定时：时刻 "HH:MM" 或 ":MM"')
@@ -74,8 +83,19 @@ def build_parser() -> argparse.ArgumentParser:
     _add_root_arg(p)
     p.add_argument("--dry-run", action="store_true", help="只检测不执行（等同 detect）")
 
-    p = sub.add_parser("install", help="生成定时启动入口 / 安装会话注入 hook")
+    p = sub.add_parser(
+        "install",
+        help="安装触发器（默认从模板库），或 Agent 集成（--hook 等）",
+    )
+    p.add_argument("names", nargs="*", metavar="name", help="要安装的触发器名称")
     _add_root_arg(p)
+    p.add_argument("--from", dest="source", metavar="PATH",
+                   help="从 GitHub(owner/repo[/path])、git URL 或本地路径安装")
+    p.add_argument("--all", dest="install_all", action="store_true",
+                   help="安装全部：默认=本地默认库；配合 --from=该路径下全部")
+    p.add_argument("--list", dest="list_only", action="store_true",
+                   help="配合 --from：只列出 PATH 中的触发器，不安装")
+    p.add_argument("--force", action="store_true", help="覆盖同名文件")
     p.add_argument("--cron", action="store_true", help="打印 crontab 行")
     p.add_argument("--loop", action="store_true", help="生成 while+sleep 循环脚本")
     p.add_argument("--hook", action="store_true", help="Claude Code UserPromptSubmit hook → settings.json")
@@ -111,13 +131,6 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("hermes-hook", help="Session trigger JSON (Hermes pre_llm_call)")
     sub.add_parser("codex-hook", help="Session trigger JSON (Codex UserPromptSubmit)")
     sub.add_parser("statusline", help="Status line text (Claude Code statusLine)")
-
-    p = sub.add_parser("fetch", help="同步触发器库到本地固定目录")
-    p.add_argument(
-        "--source",
-        metavar="SOURCE",
-        help="GitHub owner/repo、git URL 或本地路径（默认 sunhatSH/trigger-library）",
-    )
 
     sub.add_parser("doctor", help="检查安装、hook、索引、轮询等是否正常")
 
@@ -163,11 +176,11 @@ def main(argv=None) -> int:
     if c == "init":
         return commands.cmd_init(args.root)
     if c == "add":
-        return commands.cmd_add(args.names, args.root, args.category, args.every, args.at,
-                                args.on, args.dedup, args.probe, args.dedup_cmd,
-                                args.when, args.disabled, args.force, args.locked,
-                                args.source, args.list_only, args.store, args.install_all,
-                                args.store_source)
+        return commands.cmd_add(
+            [args.name], args.root, args.category, args.every, args.at,
+            args.on, args.dedup, args.probe, args.dedup_cmd,
+            args.when, args.disabled, args.force, args.locked,
+        )
     if c == "doctor":
         return commands.cmd_doctor()
     if c == "update":
@@ -184,8 +197,6 @@ def main(argv=None) -> int:
         return commands.cmd_list(args.root)
     if c == "sync":
         return commands.cmd_sync(args.root)
-    if c == "fetch":
-        return commands.cmd_fetch(args.source)
     if c == "status":
         return commands.cmd_status(args.root, args.limit)
     if c == "detect":
@@ -193,6 +204,16 @@ def main(argv=None) -> int:
     if c == "poll":
         return _cmd_poll(args.root, args.dry_run)
     if c == "install":
+        infra = _install_infra_flags(args)
+        triggers = _install_trigger_mode(args)
+        if infra and triggers:
+            print("错误：不能同时安装触发器与 --hook / --loop 等集成选项", file=sys.stderr)
+            return 2
+        if triggers:
+            return commands.cmd_install_triggers(
+                args.names, args.root, args.force, args.install_all,
+                args.source, args.list_only,
+            )
         mode = (
             "hook" if args.hook
             else "hermes" if args.hermes
@@ -203,7 +224,7 @@ def main(argv=None) -> int:
             else "cron" if args.cron
             else "loop"
         )
-        return commands.cmd_install(args.root, mode, args.interval)
+        return commands.cmd_install_agent(args.root, mode, args.interval)
     if c == "uninstall":
         return commands.cmd_uninstall(
             args.root,

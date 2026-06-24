@@ -158,6 +158,20 @@ def list_available(source: str) -> List[TriggerFile]:
     return discover_trigger_files(base)
 
 
+def resolves_to_single_file(source: str) -> bool:
+    """True when SOURCE points at one .md file (not a directory/repo root)."""
+    spec = parse_source(source)
+    if spec.local_path is not None:
+        target = spec.local_path
+        if spec.subpath:
+            target = target / spec.subpath
+        return target.is_file()
+    if spec.subpath and spec.subpath.lower().endswith(".md"):
+        return True
+    base, _ = materialize(spec)
+    return base.is_file()
+
+
 def _dest_folder(root: Root, category: Optional[str], src_category: Optional[str]) -> Path:
     cat = category or src_category or "installed"
     return root.path / f"{cat}-triggers"
