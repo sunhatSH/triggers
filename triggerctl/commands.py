@@ -89,7 +89,7 @@ def cmd_init(selector: Optional[str]) -> int:
     (root.state_dir / "run-log.jsonl").touch(exist_ok=True)
     if root.kind == "user" and _seed_defaults(root):
         print(f"Seeded default guardrail trigger: {WARN_NAME} (locked)")
-        print("Optional templates (not installed): triggerctl fetch && triggerctl list --store")
+        print("Optional templates (not installed): triggerctl fetch && triggerctl list")
         print("  Install: triggerctl add rest-reminder --store")
     elif root.kind == "user" and _refresh_guardrail_if_stale(root):
         print(f"Updated stale guardrail trigger: {WARN_NAME} (>5 threshold)")
@@ -114,36 +114,56 @@ def cmd_fetch(source: Optional[str]) -> int:
     print(f"Synced store → {dest}")
     print(f"  source: {remote}")
     print(f"  entries: {n}")
-    print("  list: triggerctl list --store")
+    print("  list: triggerctl list")
     return 0
 
 
-def cmd_list_store(source: Optional[str]) -> int:
+def _status_label(t: Trigger) -> str:
+    label = "已启用" if t.enabled else "已关闭"
+    if t.locked:
+        label += " 🔒"
+    return label
+
+
+def cmd_list(selector: Optional[str]) -> int:
     from . import library as lib
     from .paths import local_library_dir
 
+    roots = resolve(selector)
+    installed: dict[str, Trigger] = {}
+    for root in roots:
+        for t in discover(root):
+            installed.setdefault(t.name, t)
+
+    rows: List[List[str]] = []
+    for name in sorted(installed):
+        t = installed[name]
+        rows.append(
+            [t.name, t.kind, _status_label(t), t.condition_summary(), f"{t.root.kind}:{t.rel_path}"]
+        )
+
+    store_note = ""
     try:
-        entries = lib.list_entries(source)
-    except Exception as e:  # noqa: BLE001
-        print(f"错误：{e}", file=sys.stderr)
-        return 2
-    if not entries:
-        print("（库中无触发器）")
+        for entry in lib.list_entries():
+            if entry.name in installed:
+                continue
+            cond = entry.description or entry.path
+            rows.append(
+                [entry.name, entry.kind, "未安装", cond, f"store:{entry.path}"]
+            )
+    except FileNotFoundError:
+        store_note = f"\n（本地库未同步 → triggerctl fetch；路径 {local_library_dir()}）"
+
+    if not rows:
+        print("（没有触发器）" + store_note)
         return 0
-    label = source or str(local_library_dir())
-    print(f"Store: {label}  ({len(entries)} available, not installed until you add --store)\n")
-    rows = [
-        [
-            e.name,
-            e.kind,
-            e.category,
-            "yes" if e.inject else "no",
-            e.description or e.path,
-        ]
-        for e in entries
-    ]
-    _print_table(rows, ["名称", "类型", "分组", "inject", "说明"])
-    print("\nInstall: triggerctl add <name> --store   or   triggerctl add --all --store")
+
+    rows.sort(key=lambda r: r[0])
+    _print_table(rows, ["名称", "类型", "状态", "条件", "位置"])
+    print("\n状态：未安装 = 库中模板；已启用/已关闭 = 已注册到 triggers/")
+    print("安装：triggerctl add <name> --store")
+    if store_note:
+        print(store_note.lstrip("\n"))
     return 0
 
 
@@ -378,24 +398,6 @@ def cmd_toggle(name: str, selector: Optional[str], enable: bool) -> int:
     _set_enabled_text(t.path, enable)
     registry.sync(t.root)
     print(f"{name} -> enabled={enable}")
-    return 0
-
-
-def cmd_list(selector: Optional[str], store: bool = False, store_source: Optional[str] = None) -> int:
-    if store:
-        return cmd_list_store(store_source)
-    roots = resolve(selector)
-    rows = []
-    for root in roots:
-        for t in discover(root):
-            en = ("on" if t.enabled else "off") + (" 🔒" if t.locked else "")
-            rows.append([t.name, t.kind, en,
-                         t.condition_summary(), f"{root.kind}:{t.rel_path}"])
-    if not rows:
-        print("（没有触发器）")
-        return 0
-    _print_table(rows, ["名称", "类型", "启用", "条件", "位置"])
-    print("\n🔒 = 不可关闭（locked）")
     return 0
 
 

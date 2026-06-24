@@ -35,7 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--all", dest="install_all", action="store_true",
                    help="配合 --store：安装库中全部触发器")
     p.add_argument("--source", dest="store_source", metavar="SOURCE",
-                   help="配合 --store / list --store：临时指定库位置")
+                   help="配合 --store：临时指定库位置")
     p.add_argument("--category", help="子目录分组（生成 <category>-triggers/）")
     p.add_argument("--every", choices=["day", "hour", "week", "month"], help="定时：周期")
     p.add_argument("--at", help='定时：时刻 "HH:MM" 或 ":MM"')
@@ -57,11 +57,8 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("name")
         _add_root_arg(p)
 
-    p = sub.add_parser("list", help="列出已安装触发器，或 --store 列举库中可选模板")
+    p = sub.add_parser("list", help="列出已安装触发器与库中未安装模板")
     _add_root_arg(p)
-    p.add_argument("--store", action="store_true", help="列举库中可选触发器（未安装）")
-    p.add_argument("--source", dest="store_source", metavar="SOURCE",
-                   help="配合 --store：临时指定库位置")
 
     p = sub.add_parser("sync", help="由触发器文件重新生成 TRIGGERS.md 索引")
     _add_root_arg(p)
@@ -184,7 +181,7 @@ def main(argv=None) -> int:
     if c == "disable":
         return commands.cmd_toggle(args.name, args.root, False)
     if c == "list":
-        return commands.cmd_list(args.root, args.store, args.store_source)
+        return commands.cmd_list(args.root)
     if c == "sync":
         return commands.cmd_sync(args.root)
     if c == "fetch":

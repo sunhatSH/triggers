@@ -99,11 +99,10 @@ Install from Git or local paths (similar to `skills add`):
 
 ```bash
 triggerctl fetch
-triggerctl list --store
+triggerctl list
 triggerctl add rest-reminder auto-commit-push --store --root user
 
-# ad-hoc source (without fetch):
-triggerctl list --store --source sunhatSH/trigger-library
+# ad-hoc install source:
 triggerctl add rest-reminder --store --source /path/to/trigger-library
 
 # legacy:

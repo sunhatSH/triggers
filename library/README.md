@@ -3,7 +3,7 @@
 Templates live in **[github.com/sunhatSH/trigger-library](https://github.com/sunhatSH/trigger-library)**.
 
 ```bash
-triggerctl fetch                 # → ~/.local/share/triggerctl/library
-triggerctl list --store
+triggerctl fetch
+triggerctl list          # 未安装 / 已启用 / 已关闭
 triggerctl add rest-reminder --store
 ```

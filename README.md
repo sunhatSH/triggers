@@ -47,7 +47,7 @@ Then sync the optional trigger library (not auto-installed into your registry):
 
 ```bash
 triggerctl fetch
-triggerctl list --store
+triggerctl list
 triggerctl add rest-reminder auto-commit-push --store
 ```
 
@@ -133,7 +133,7 @@ See [docs/integrations/codex.md](docs/integrations/codex.md).
 | Command | Purpose |
 |---|---|
 | `triggerctl fetch [--source SRC]` | Sync store → `~/.local/share/triggerctl/library` |
-| `triggerctl list --store [--source SRC]` | List available templates (not installed) |
+| `triggerctl list [--root all]` | List installed + store templates (状态: 未安装/已启用/已关闭) |
 | `triggerctl add <name> --store` | Install from local store by name |
 | `triggerctl init [--root user\|project]` | Initialize registry root |
 | `triggerctl add <name> [--every \| --probe \| --when]` | Register trigger |
@@ -141,7 +141,6 @@ See [docs/integrations/codex.md](docs/integrations/codex.md).
 | `triggerctl update` | Update from lock file |
 | `triggerctl doctor` | Health check |
 | `triggerctl validate [--probe-test]` | Validate frontmatter |
-| `triggerctl list [--root all]` | List triggers |
 | `triggerctl sync` | Regenerate TRIGGERS.md ops index |
 | `triggerctl detect` / `poll` | Detection / execution |
 | `triggerctl install --hook` | Claude Code UserPromptSubmit injection |

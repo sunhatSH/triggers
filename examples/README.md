@@ -2,6 +2,6 @@
 
 ```bash
 triggerctl fetch
-triggerctl list --store
+triggerctl list
 triggerctl add rest-reminder --store
 ```
