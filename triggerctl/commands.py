@@ -44,6 +44,23 @@ def _seed_defaults(root: Root) -> bool:
     return True
 
 
+def _refresh_guardrail_if_stale(root: Root) -> bool:
+    """Update locked guardrail when threshold wording is outdated (>20 era)."""
+    path = root.path / "system-triggers" / f"{WARN_NAME}.md"
+    if not path.is_file():
+        return False
+    meta, body = frontmatter.read_file(path)
+    when = str(meta.get("when", ""))
+    stale = ">20" in body or ">20" in when or "more than 20" in when or when != WARN_WHEN
+    if not stale:
+        return False
+    meta.update(
+        {"name": WARN_NAME, "enabled": True, "locked": True, "inject": False, "when": WARN_WHEN}
+    )
+    frontmatter.write_file(path, meta, WARN_BODY)
+    return True
+
+
 # ---------- helpers ----------
 
 def _print_table(rows: List[List[str]], headers: List[str]) -> None:
@@ -73,6 +90,8 @@ def cmd_init(selector: Optional[str]) -> int:
     if root.kind == "user" and _seed_defaults(root):
         print(f"Seeded default guardrail trigger: {WARN_NAME} (locked)")
         print("Optional templates: triggerctl add --from ./catalog/<session|poll>/<name>.md --root user")
+    elif root.kind == "user" and _refresh_guardrail_if_stale(root):
+        print(f"Updated stale guardrail trigger: {WARN_NAME} (>5 threshold)")
     n = registry.sync(root)
     print(f"Initialized {root}  ({n} trigger(s) indexed)")
     print(f"Ops index: {root.index_file}")
