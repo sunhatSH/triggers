@@ -38,6 +38,22 @@ triggerctl/              # repo root (GitHub: sunhatSH/triggers)
 
 ## Install
 
+**One line (curl + git):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sunhatSH/triggers/main/install-remote.sh | bash
+```
+
+Clones to `~/.local/share/triggerctl/repo` and runs `install.sh`. Options:
+
+```bash
+AGENT=claude curl -fsSL ... | bash
+TRIGGERCTL_BRANCH=dev curl -fsSL ... | bash   # before main is updated
+PYTHON=/path/to/python3 curl -fsSL ... | bash
+```
+
+**From a git clone:**
+
 ```bash
 git clone git@github.com:sunhatSH/triggers.git
 cd triggers
