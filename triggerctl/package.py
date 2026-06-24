@@ -1,6 +1,7 @@
 """Install triggers from git repos or local paths (skills add parity)."""
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
@@ -152,6 +153,35 @@ def _category_from_path(folder: Path) -> Optional[str]:
     return None
 
 
+def _ensure_statusline_in_settings() -> None:
+    """Write statusLine entry into ~/.claude/settings.json if not already present."""
+    settings = Path.home() / ".claude" / "settings.json"
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    data = {}
+    if settings.exists():
+        try:
+            data = json.loads(settings.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    if "statusLine" not in data:
+        cmd = shutil.which("triggerctl") or f"{sys.executable} -m triggerctl"
+        data["statusLine"] = {
+            "type": "command",
+            "command": f"{cmd} statusline",
+            "padding": 0,
+        }
+        settings.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _trigger_needs_statusline(path: Path) -> bool:
+    """Check frontmatter for statusline: true — signal to auto-configure settings.json."""
+    try:
+        meta, _ = frontmatter.read_file(path)
+        return bool(meta.get("statusline", False))
+    except Exception:
+        return False
+
+
 def list_available(source: str) -> List[TriggerFile]:
     spec = parse_source(source)
     base, _ = materialize(spec)
@@ -201,6 +231,8 @@ def install_from_source(
             result.skipped.append(tf.name)
             continue
         shutil.copy2(tf.path, dest)
+        if _trigger_needs_statusline(tf.path):
+            _ensure_statusline_in_settings()
         try:
             rel = str(dest.relative_to(root.path))
         except ValueError:
