@@ -99,6 +99,17 @@ case ":$PATH:" in *":$BIN_DIR:"*) :;; *) echo "    ⚠️ $BIN_DIR not on PATH; 
 echo "==> Initialize user triggers root"
 "$TCTL" init --root user
 
+echo "==> Sync trigger library (optional templates, not auto-installed)"
+if "$TCTL" fetch; then
+  echo "    library -> $("$PY" - <<'PY'
+from pathlib import Path
+print(Path.home() / ".local/share/triggerctl/library")
+PY
+)"
+else
+  echo "    ⚠️ fetch failed (offline?). Retry: triggerctl fetch"
+fi
+
 install_claude() {
   echo "==> Claude Code: skill + UserPromptSubmit hook + statusLine"
   mkdir -p "$CLAUDE_DIR/skills/triggerctl"

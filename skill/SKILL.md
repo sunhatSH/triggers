@@ -47,6 +47,10 @@ triggerctl add auto-commit --root user --when 'when a feature is complete: small
 
 ```bash
 triggerctl list [--root all]
+triggerctl fetch [--source SRC]
+triggerctl list
+triggerctl add <name> --store [--source SRC]
+triggerctl add --all --store
 triggerctl enable/disable <name>
 triggerctl remove <name>
 triggerctl add --from <SOURCE> [--list]

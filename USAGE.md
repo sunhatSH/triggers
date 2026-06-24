@@ -66,7 +66,7 @@ See [docs/integrations/codex.md](docs/integrations/codex.md) for Codex details.
 | User | `~/.claude/triggers/` | Global, all projects |
 | Project | `<project>/triggers/` | Committed with the repo |
 | System | `~/.claude/triggers/system-triggers/` | Guardrails (e.g. `too-many-triggers-warning`; only this one is seeded on `init`) |
-| Catalog (repo) | `catalog/` | Optional templates — `session/` (hook) and `poll/` (time/event); install with `add --from` |
+| Library | `~/.local/share/triggerctl/library` | Synced from [trigger-library](https://github.com/sunhatSH/trigger-library); list/install default here |
 
 `TRIGGERS.md` is an **ops index only** — not injected into agent context.
 
@@ -98,8 +98,15 @@ triggerctl codex-hook                          # session JSON (Codex UserPromptS
 Install from Git or local paths (similar to `skills add`):
 
 ```bash
-triggerctl add --from sunhatSH/triggers/catalog/poll --list
-triggerctl add --from ./catalog/poll/daily-backup.md --root user
+triggerctl fetch
+triggerctl list
+triggerctl add rest-reminder auto-commit-push --store --root user
+
+# ad-hoc install source:
+triggerctl add rest-reminder --store --source /path/to/trigger-library
+
+# legacy:
+triggerctl add --from sunhatSH/trigger-library/session/rest-reminder.md --root user
 triggerctl update --root user
 ```
 

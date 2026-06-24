@@ -1,13 +1,6 @@
-# Moved → `catalog/`
-
-Templates previously under `bundled/` and `examples/` now live in **[../catalog/](../catalog/)**:
-
-- Session: `catalog/session/`
-- Time/event/combo: `catalog/poll/`
+# Moved → [sunhatSH/trigger-library](https://github.com/sunhatSH/trigger-library)
 
 ```bash
-triggerctl add --from ./catalog/session/auto-commit-push.md --root user
-triggerctl add --from ./catalog/poll/daily-backup.md --root user
+triggerctl fetch
+triggerctl add rest-reminder --store
 ```
-
-See [../catalog/README.md](../catalog/README.md) for the full index.
