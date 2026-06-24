@@ -19,6 +19,20 @@ TRIGGER_BLOCK_PREFIX = "[Triggers·"
 TRIGGER_BLOCK_PREFIX_LEGACY = "[触发器·"
 TRIGGER_MARKERS = (TRIGGER_BLOCK_PREFIX, TRIGGER_BLOCK_PREFIX_LEGACY)
 
+# Guardrail: too-many-triggers-warning (statusLine + doctor, not hook).
+TOO_MANY_THRESHOLD = 20
+
+
+def enabled_trigger_count(roots: Optional[List[Root]] = None) -> int:
+    """Count enabled triggers across registry roots."""
+    roots = roots if roots is not None else all_roots()
+    total = 0
+    for root in roots:
+        if not root.path.is_dir():
+            continue
+        total += sum(1 for t in discover(root) if t.enabled)
+    return total
+
 
 def local_now() -> datetime:
     """Current time in the configured timezone (naive datetime)."""
@@ -36,7 +50,11 @@ def _now_line() -> str:
     )
 
 
-def statusline(data: dict, now: Optional[datetime] = None) -> str:
+def statusline(
+    data: dict,
+    now: Optional[datetime] = None,
+    roots: Optional[List[Root]] = None,
+) -> str:
     """Deterministic status-line text (shown by Claude Code, not model-mediated)."""
     now = now or local_now()
     data = data or {}
@@ -49,6 +67,9 @@ def statusline(data: dict, now: Optional[datetime] = None) -> str:
     h = now.hour
     if h >= 22 or h < 10:
         line += f"  🌙 rest window ({now:%H:%M})"
+    n = enabled_trigger_count(roots)
+    if n > TOO_MANY_THRESHOLD:
+        line += f"  ⚠️ {n} triggers (>{TOO_MANY_THRESHOLD})"
     return line
 
 

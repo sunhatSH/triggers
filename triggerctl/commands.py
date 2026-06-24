@@ -18,12 +18,12 @@ WARN_NAME = "too-many-triggers-warning"
 WARN_WHEN = "when more than 20 enabled triggers are registered in the index"
 WARN_BODY = """# too-many-triggers-warning
 
-Warn the user that too many enabled triggers consume context. System guardrail; `locked: true`.
+System guardrail (`locked: true`). Not injected into agent context.
 
-Steps:
-1. Count enabled triggers N in the registry (excluding disabled).
-2. If N > 20: warn the user (prefix with source) — "[Trigger: too-many-triggers-warning] N enabled triggers (>20); consider `triggerctl disable <name>` for unused ones."
-3. If N ≤ 20: stay silent.
+When enabled count > 20, `triggerctl statusline` shows `⚠️ N triggers (>20)` in the
+Agent status bar (same channel as rest reminders). `triggerctl doctor` also warns.
+
+Suggest: `triggerctl disable <name>` for unused triggers.
 """
 
 

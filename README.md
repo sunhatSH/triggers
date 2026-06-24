@@ -53,7 +53,7 @@ See [docs/proposals/user-prompt-submit-replacement-context.md](docs/proposals/us
 | event (`probe`) | `triggerctl poll` | **No** |
 | combo | `triggerctl poll` | **No** |
 | semantic session (`when` only) | UserPromptSubmit hook | **Yes** |
-| `inject: false` | doctor / statusLine | **No** |
+| `inject: false` | doctor / statusLine | **No** (rest → 🌙; >20 triggers → ⚠️ in status bar) |
 
 ## Docs
 
@@ -84,6 +84,8 @@ See [docs/proposals/user-prompt-submit-replacement-context.md](docs/proposals/us
 
 ```bash
 cd triggerctl && PYTHONPATH=. python -m pytest -q
+python3 scripts/test-statusline.py        # statusLine: rest + >20 warning
+python3 scripts/test-statusline.py --demo # example output lines
 ```
 
 ## Timezone

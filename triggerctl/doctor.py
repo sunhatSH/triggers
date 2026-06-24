@@ -12,6 +12,7 @@ from typing import List, Optional
 from . import registry
 from .model import discover
 from .roots import Root, all_roots, project_root, user_root
+from .hookgen import TOO_MANY_THRESHOLD
 from .tz import tz_label, tz_offset
 
 
@@ -188,11 +189,11 @@ def run(start: Optional[Path] = None) -> Report:
                     f"{len(poll_types)} time/event trigger(s) but no poll loop → triggerctl install --loop",
                 )
 
-        if len(enabled) > 20:
+        if len(enabled) > TOO_MANY_THRESHOLD:
             rep.add(
                 f"{label} trigger count",
                 "warn",
-                f"{len(enabled)} enabled (>20) → triggerctl disable <name>",
+                f"{len(enabled)} enabled (>{TOO_MANY_THRESHOLD}) — also shown in statusLine → triggerctl disable <name>",
             )
 
     tz = os.environ.get("TRIGGERCTL_TZ_OFFSET")

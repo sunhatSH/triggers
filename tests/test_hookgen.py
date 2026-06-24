@@ -53,6 +53,34 @@ def test_statusline_daytime_no_rest():
     assert "🌙" not in line and "proj" in line
 
 
+def test_statusline_too_many_triggers(tmp_path, monkeypatch):
+    from datetime import datetime
+    from triggerctl import frontmatter
+
+    root = _root(tmp_path)
+    monkeypatch.setattr(hookgen, "all_roots", lambda: [root])
+    root.path.mkdir(parents=True, exist_ok=True)
+    for i in range(21):
+        p = root.path / f"t-{i}.md"
+        frontmatter.write_file(
+            p,
+            {"name": f"t-{i}", "enabled": True, "when": "always"},
+            f"# t-{i}\n",
+        )
+    line = hookgen.statusline({"cwd": "/a/proj"}, now=datetime(2026, 6, 23, 15, 0))
+    assert "⚠️" in line and "21 triggers" in line and ">20" in line
+
+
+def test_statusline_under_threshold_no_warn(tmp_path, monkeypatch):
+    from datetime import datetime
+
+    root = _root(tmp_path)
+    monkeypatch.setattr(hookgen, "all_roots", lambda: [root])
+    root.path.mkdir(parents=True, exist_ok=True)
+    line = hookgen.statusline({"cwd": "/a/proj"}, now=datetime(2026, 6, 23, 15, 0))
+    assert "⚠️" not in line
+
+
 def test_disabled_session_excluded(tmp_path, monkeypatch):
     root = _root(tmp_path)
     monkeypatch.setattr(commands, "primary", lambda sel: root)
