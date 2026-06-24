@@ -38,7 +38,7 @@ Start a **new Hermes session** after install.
 | Project triggers | uses hook stdin `cwd` | uses hook stdin `cwd` (same) |
 | Time/event triggers | `triggerctl poll` | `triggerctl poll` (same registry) |
 | Poll execution | `claude -p` (default) | `hermes chat -q` when `TRIGGERCTL_AGENT=hermes` or Hermes-only PATH |
-| Status bar hints (rest, >20) | `triggerctl statusline` | not available — use `triggerctl doctor` |
+| Status bar hints (rest, >5) | `triggerctl statusline` | not available — use `triggerctl doctor` |
 | Hook replace experiment | `TRIGGERCTL_HOOK_REPLACE` | N/A (Hermes prepends per turn) |
 
 ## Manual test

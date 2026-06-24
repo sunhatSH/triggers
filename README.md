@@ -19,7 +19,7 @@ of truth, generated index, multiple registry roots).
   - Project: `<project>/triggers/`
 - **Idempotency**: `.state/run-log.jsonl` keyed by `(name, key)`.
 - **Bundled optional triggers**: `bundled/` ships git/rest templates; `init` seeds only the locked guardrail. Install with `triggerctl add --from ./bundled/...`.
-- **>20 warning**: counts **hook-eligible** session triggers only (`in_context`), not time/event or `inject: false`.
+- **>5 warning**: counts **hook-eligible** session triggers only (`in_context`), not time/event or `inject: false`.
 
 ## Install
 
@@ -78,7 +78,7 @@ See [docs/codex.md](docs/codex.md).
 | event (`probe`) | `triggerctl poll` | **No** |
 | combo | `triggerctl poll` | **No** |
 | semantic session (`when` only) | UserPromptSubmit hook (Claude/Codex) / `pre_llm_call` (Hermes) | **Yes** |
-| `inject: false` | doctor / statusLine | **No** (rest → 🌙; >20 **context** triggers → ⚠️ in status bar) |
+| `inject: false` | doctor / statusLine | **No** (rest → 🌙; >5 **context** triggers → ⚠️ in status bar) |
 
 ## Docs
 
@@ -117,7 +117,7 @@ See [docs/codex.md](docs/codex.md).
 
 ```bash
 cd triggerctl && PYTHONPATH=. python -m pytest -q
-python3 scripts/test-statusline.py        # statusLine: rest + >20 warning
+python3 scripts/test-statusline.py        # statusLine: rest + >5 warning
 python3 scripts/test-statusline.py --demo # example output lines
 ```
 

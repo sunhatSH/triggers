@@ -20,7 +20,7 @@ TRIGGER_BLOCK_PREFIX_LEGACY = "[触发器·"
 TRIGGER_MARKERS = (TRIGGER_BLOCK_PREFIX, TRIGGER_BLOCK_PREFIX_LEGACY)
 
 # Guardrail: too-many-triggers-warning (statusLine + doctor, not hook).
-TOO_MANY_THRESHOLD = 20
+TOO_MANY_THRESHOLD = 5
 
 
 def enabled_trigger_count(roots: Optional[List[Root]] = None) -> int:

@@ -48,11 +48,11 @@ def run_synthetic_tests() -> bool:
     ok = True
 
     with tempfile.TemporaryDirectory(prefix="triggerctl-statusline-") as tmp:
-        over = _seed_triggers(Path(tmp) / "over", 21)
+        over = _seed_triggers(Path(tmp) / "over", 6)
         under = _seed_triggers(Path(tmp) / "under", 3)
 
         cases = [
-            ("too many (21)", over, datetime(2026, 6, 24, 15, 0), True, False),
+            ("too many (6)", over, datetime(2026, 6, 24, 15, 0), True, False),
             ("under threshold (3)", under, datetime(2026, 6, 24, 15, 0), False, False),
             ("rest window", under, datetime(2026, 6, 24, 23, 30), False, True),
             ("rest + too many", over, datetime(2026, 6, 24, 23, 30), True, True),
@@ -127,10 +127,10 @@ def print_demo() -> None:
     data = {"model": {"display_name": "Opus"}, "cwd": "/path/sunhao4"}
     with tempfile.TemporaryDirectory() as tmp:
         for label, now, n in [
-            ("normal", datetime(2026, 6, 24, 15, 0), 5),
-            ("rest window", datetime(2026, 6, 24, 23, 15), 5),
-            ("too many", datetime(2026, 6, 24, 15, 0), 23),
-            ("rest + too many", datetime(2026, 6, 24, 23, 15), 23),
+            ("normal", datetime(2026, 6, 24, 15, 0), 3),
+            ("rest window", datetime(2026, 6, 24, 23, 15), 3),
+            ("too many", datetime(2026, 6, 24, 15, 0), 6),
+            ("rest + too many", datetime(2026, 6, 24, 23, 15), 6),
         ]:
             root = _seed_triggers(Path(tmp) / label, n)
             line = hookgen.statusline(data, now=now, roots=[root])

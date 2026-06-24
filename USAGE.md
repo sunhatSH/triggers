@@ -57,7 +57,7 @@ See [docs/codex.md](docs/codex.md) for Codex details.
 - `schedule` + `probe` together = **combo** (AND).
 - `locked: true` = cannot be disabled or removed with `disable` / `remove`.
 - `inject: false` = registered but **not** injected into model context (e.g. rest reminder → statusLine only).
-- **>20 warning** (statusLine / doctor) counts **hook-eligible** session triggers only — not time/event or `inject: false`.
+- **>5 warning** (statusLine / doctor) counts **hook-eligible** session triggers only — not time/event or `inject: false`.
 
 ## Registry roots
 
@@ -142,7 +142,7 @@ or `codex exec` when `TRIGGERCTL_AGENT=codex` (or auto-detect when only that CLI
 Claude Code:
 
 1. **`install --hook`** — injects session trigger conditions each user turn (uses hook stdin `cwd` for project triggers).
-2. **`install --statusline`** — deterministic status bar (rest window 🌙, >20 triggers ⚠️).
+2. **`install --statusline`** — deterministic status bar (rest window 🌙, >5 context triggers ⚠️).
 3. Optional **`TRIGGERCTL_HOOK_REPLACE=1`** — experimental latest-only injection (see [docs/proposals/user-prompt-submit-replacement-context.md](docs/proposals/user-prompt-submit-replacement-context.md)).
 
 Hermes:

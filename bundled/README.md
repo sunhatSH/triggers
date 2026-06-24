@@ -27,5 +27,5 @@ triggerctl add --from ./bundled --root user
 
 For time/event templates see [../examples/](../examples/).
 
-The **>20 warning** counts only **hook-eligible** session triggers (`in_context`), not
+The **>5 warning** counts only **hook-eligible** session triggers (`in_context`), not
 time/event triggers or `inject: false` entries.

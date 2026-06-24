@@ -15,7 +15,7 @@ BODY_STUB = "# {name}\n\nSteps to run when this trigger fires (natural language 
 
 # Default system guardrail trigger (locked)
 WARN_NAME = "too-many-triggers-warning"
-WARN_WHEN = "when more than 20 context-injected session triggers are registered"
+WARN_WHEN = "when more than 5 context-injected session triggers are registered"
 WARN_BODY = """# too-many-triggers-warning
 
 System guardrail (`locked: true`). Not injected into agent context.
@@ -23,7 +23,7 @@ System guardrail (`locked: true`). Not injected into agent context.
 Counts **hook-eligible** triggers only: enabled semantic session triggers with
 `inject: true` (default). time/event triggers and `inject: false` entries are excluded.
 
-When that count > 20, `triggerctl statusline` shows `⚠️ N context triggers (>20)` in the
+When that count > 5, `triggerctl statusline` shows `⚠️ N context triggers (>5)` in the
 Agent status bar (same channel as rest reminders). `triggerctl doctor` also warns.
 
 Suggest: `triggerctl disable <name>` for unused session triggers.
