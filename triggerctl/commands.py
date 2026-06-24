@@ -11,19 +11,19 @@ from . import frontmatter, registry, runlog
 from .model import Trigger, discover, find
 from .roots import Root, primary, resolve
 
-BODY_STUB = "# {name}\n\n触发后要执行的步骤（写给模型看的自然语言指令）：\n\n- TODO：在此填写动作步骤。\n"
+BODY_STUB = "# {name}\n\nSteps to run when this trigger fires (natural language for the model):\n\n- TODO: fill in action steps here.\n"
 
-# ---- 默认/系统级护栏触发器（locked，不可关闭） ----
+# Default system guardrail trigger (locked)
 WARN_NAME = "too-many-triggers-warning"
-WARN_WHEN = "本索引「注册表」中启用(列出)的触发器数量超过 20 个时"
+WARN_WHEN = "when more than 20 enabled triggers are registered in the index"
 WARN_BODY = """# too-many-triggers-warning
 
-提醒用户「启用的触发器过多，会占用每次请求的上下文」。这是系统级护栏，`locked: true` 不可关闭。
+Warn the user that too many enabled triggers consume context. System guardrail; `locked: true`.
 
-步骤：
-1. 数一下索引「注册表」里启用(列出)的触发器条数 N（不含已停用的）。
-2. 若 N > 20：提醒用户（消息开头标来源）——"[触发器: too-many-triggers-warning] 当前启用触发器 N 个，已超过 20，会持续占用上下文；建议 `triggerctl disable <名称>` 停用不常用的（停用即不占上下文）。"
-3. N ≤ 20：不要提示，安静跳过。
+Steps:
+1. Count enabled triggers N in the registry (excluding disabled).
+2. If N > 20: warn the user (prefix with source) — "[Trigger: too-many-triggers-warning] N enabled triggers (>20); consider `triggerctl disable <name>` for unused ones."
+3. If N ≤ 20: stay silent.
 """
 
 
@@ -35,7 +35,7 @@ def _seed_defaults(root: Root) -> bool:
     path.parent.mkdir(parents=True, exist_ok=True)
     frontmatter.write_file(
         path,
-        {"name": WARN_NAME, "enabled": True, "locked": True, "when": WARN_WHEN},
+        {"name": WARN_NAME, "enabled": True, "locked": True, "inject": False, "when": WARN_WHEN},
         WARN_BODY,
     )
     return True
@@ -67,16 +67,91 @@ def cmd_init(selector: Optional[str]) -> int:
     root.path.mkdir(parents=True, exist_ok=True)
     root.state_dir.mkdir(parents=True, exist_ok=True)
     (root.state_dir / "run-log.jsonl").touch(exist_ok=True)
-    if _seed_defaults(root):
-        print(f"已植入默认护栏触发器：{WARN_NAME}（locked）")
+    if root.kind == "user" and _seed_defaults(root):
+        print(f"Seeded default guardrail trigger: {WARN_NAME} (locked)")
     n = registry.sync(root)
-    print(f"已初始化 {root}  (索引 {n} 个触发器)")
-    print(f"索引: {root.index_file}")
+    print(f"Initialized {root}  ({n} trigger(s) indexed)")
+    print(f"Ops index: {root.index_file}")
+    if root.kind == "project":
+        print(f"Project CLAUDE.md: {root.claude_md}")
     return 0
 
 
+def cmd_add_from(
+    source: str,
+    selector: Optional[str],
+    category: Optional[str],
+    force: bool,
+    list_only: bool,
+) -> int:
+    from . import package
+
+    if list_only:
+        try:
+            files = package.list_available(source)
+        except Exception as e:  # noqa: BLE001
+            print(f"错误：{e}", file=sys.stderr)
+            return 2
+        if not files:
+            print("（未找到触发器）")
+            return 0
+        rows = [[f.name, f.category or "-", str(f.path)] for f in files]
+        _print_table(rows, ["名称", "分组", "路径"])
+        return 0
+
+    try:
+        result = package.install_from_source(source, selector, category, force)
+    except Exception as e:  # noqa: BLE001
+        print(f"错误：{e}", file=sys.stderr)
+        return 2
+
+    for name in result.installed:
+        print(f"已安装 {name}")
+    for name in result.skipped:
+        print(f"跳过 {name}（已存在，加 --force 覆盖）")
+    for err in result.errors:
+        print(f"错误：{err}", file=sys.stderr)
+    if not result.installed and not result.skipped:
+        print("未安装任何触发器", file=sys.stderr)
+        return 1
+    return 0
+
+
+def cmd_update(selector: Optional[str], force: bool) -> int:
+    from . import package
+
+    result = package.update_packages(selector, force)
+    for name in result.installed:
+        print(f"已更新 {name}")
+    for name in result.skipped:
+        print(f"跳过 {name}")
+    for err in result.errors:
+        print(f"错误：{err}", file=sys.stderr)
+    if result.errors and not result.installed:
+        return 1
+    if not result.installed and not result.skipped and not result.errors:
+        print("triggers-lock.json 中没有可更新的包")
+    return 0
+
+
+def cmd_doctor(start: Optional[Path] = None) -> int:
+    from . import doctor
+
+    rep = doctor.run(start)
+    print(doctor.format_report(rep))
+    return 0 if rep.ok else 1
+
+
+def cmd_validate(selector: Optional[str], probe_test: bool) -> int:
+    from . import validate
+
+    rep = validate.validate(selector, probe_test)
+    print(validate.format_report(rep))
+    return 0 if rep.ok else 1
+
+
 def cmd_add(
-    name: str,
+    name: Optional[str],
     selector: Optional[str],
     category: Optional[str],
     every: Optional[str],
@@ -89,7 +164,14 @@ def cmd_add(
     disabled: bool,
     force: bool,
     locked: bool = False,
+    source: Optional[str] = None,
+    list_only: bool = False,
 ) -> int:
+    if source:
+        return cmd_add_from(source, selector, category, force, list_only)
+    if not name:
+        print("错误：请提供触发器名称，或使用 --from <git/路径> 安装", file=sys.stderr)
+        return 2
     if not every and not probe and not when:
         print("错误：至少要 --every（定时）、--probe（条件）或 --when（会话内语义条件）其一", file=sys.stderr)
         return 2
@@ -224,12 +306,10 @@ def cmd_status(selector: Optional[str], limit: int) -> int:
 
 
 def cmd_hook() -> int:
-    """Print the session-trigger context block (used by the UserPromptSubmit hook)."""
-    from . import hookgen
-    block = hookgen.session_context()
-    if block:
-        print(block)
-    return 0
+    """Print session-trigger context (UserPromptSubmit hook entrypoint)."""
+    from . import hook_runner
+
+    return hook_runner.run_user_prompt_submit()
 
 
 def cmd_statusline() -> int:
@@ -279,8 +359,7 @@ def _triggerctl_cmd() -> str:
 
 
 def cmd_install_hook() -> int:
-    """Merge a UserPromptSubmit hook into ~/.claude/settings.json so session triggers
-    are injected into every prompt's context."""
+    """Merge a UserPromptSubmit hook into ~/.claude/settings.json."""
     import json
     from pathlib import Path
     settings = Path.home() / ".claude" / "settings.json"
@@ -290,25 +369,27 @@ def cmd_install_hook() -> int:
         try:
             data = json.loads(settings.read_text(encoding="utf-8"))
         except Exception as e:  # noqa: BLE001
-            print(f"读取 {settings} 失败: {e}", file=sys.stderr)
+            print(f"Failed to read {settings}: {e}", file=sys.stderr)
             return 1
-        # back up before touching
         bak = settings.with_suffix(".json.triggerctl.bak")
         bak.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     cmd = f"{_triggerctl_cmd()} hook"
     hooks = data.setdefault("hooks", {})
     ups = hooks.setdefault("UserPromptSubmit", [])
-    # idempotent: skip if our hook is already there
     for group in ups:
         for h in group.get("hooks", []):
             if "triggerctl hook" in h.get("command", "") or h.get("command") == cmd:
-                print("UserPromptSubmit hook 已存在，跳过。")
+                print("UserPromptSubmit hook already present, skipping.")
                 return 0
     ups.append({"hooks": [{"type": "command", "command": cmd}]})
-    settings.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"已写入 UserPromptSubmit hook 到 {settings}")
-    print(f"  命令: {cmd}")
-    print("注意：仅对**新启动**的会话生效。")
+    env = data.setdefault("env", {})
+    env.setdefault("TRIGGERCTL_HOOK_REPLACE", "1")
+    env.setdefault("TRIGGERCTL_HOOK_JSON", "1")
+    settings.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"Wrote UserPromptSubmit hook to {settings}")
+    print(f"  command: {cmd}")
+    print("  env: TRIGGERCTL_HOOK_REPLACE=1, TRIGGERCTL_HOOK_JSON=1 (experimental replace mode)")
+    print("Note: takes effect in a new Claude session only.")
     return 0
 
 

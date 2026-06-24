@@ -1,111 +1,91 @@
 # triggerctl
 
-Triggers for Claude Code — 让命令/prompt 在「到点」或「条件成立」时自动执行，既能在会话中触发，也能在 Agent 不运行时（如夜里）由定时轮询拉起。设计参考 [vercel-labs/skills](https://github.com/vercel-labs/skills/tree/main/src) 的模块化思路（frontmatter 为源真相、索引可生成、多注册根）。
+Triggers for Claude Code — run commands or prompts on a schedule, when a probe
+succeeds, or when a semantic session condition matches. Inspired by
+[vercel-labs/skills](https://github.com/vercel-labs/skills) (frontmatter as source
+of truth, generated index, multiple registry roots).
 
-## 核心设计
+## Design
 
-- **两层架构**（同时压住延迟与成本）：
-  - **检测层**（便宜，纯 Python，无模型）：评估 `schedule`（时间）+ `probe`（条件），按 run-log 去重。可高频跑（如每分钟）。
-  - **执行层**（模型）：只对**真正 DUE** 的触发器调一次 `claude -p`。
-- **类型由 frontmatter 推断**：只写 `schedule`=定时型；只写 `probe`=条件型；两者都写=组合（**AND，都满足才触发**）。
-- **源真相 = 各触发器 `.md` 的 frontmatter**；`TRIGGERS.md`（扁平一级索引）由 `triggerctl sync` 生成，供模型会话内自查。
-- **多注册根**（类似 skills）：用户级 `~/.claude/triggers/`、项目级 `<project>/triggers/`。
-- **幂等**：`.state/run-log.jsonl` 按 `(name, key)` 去重；时间型 key=周期，条件型 key=事件实例。
+- **Two layers** (latency vs cost):
+  - **Detection** (cheap Python, no model): evaluates `schedule` + `probe`, dedups via run-log.
+  - **Execution** (model): calls `claude -p` only for DUE triggers.
+- **Types inferred from frontmatter**: `schedule` only → time; `probe` only → event;
+  both → AND combo; `when` only (no schedule/probe) → semantic session (hook).
+- **Source of truth** = each trigger `.md` file; `TRIGGERS.md` is an **ops index**
+  (not injected into agent context).
+- **Registry roots**:
+  - User: `~/.claude/triggers/`
+  - Project: `<project>/triggers/`
+- **Idempotency**: `.state/run-log.jsonl` keyed by `(name, key)`.
 
-## 克隆
-
-```bash
-# SSH（推荐，仓库主已配密钥）
-git clone git@github.com:sunhatSH/triggers.git
-# 或 HTTPS（需 GitHub 账号/PAT）
-git clone https://github.com/sunhatSH/triggers.git
-```
-
-## 安装（一键，推荐）
+## Install
 
 ```bash
 cd triggers && bash install.sh
 ```
 
-把触发器能力嵌入 Claude Code：装 `triggerctl` 到 PATH → 初始化用户级触发器根（含护栏）→ 安装 `triggerctl` skill → 写入 UserPromptSubmit 注入 hook。**装完新开一个 `claude` 会话**才生效。
+Installs `triggerctl` on PATH, initializes the user registry, installs the skill,
+and writes the UserPromptSubmit hook + statusLine. **Start a new Claude session**
+after install.
 
-仅装库：`pip install -e .`（之后用 `triggerctl`；别用 `python -m triggerctl` 除非确认解释器装了本包）。
+If `pip` is missing, `install.sh` uses `/opt/conda/bin/python3 -m pip`.
 
-## 文档 / 示例
+### Experimental: latest-only hook injection
 
-- **使用说明（含常见问题/排错）**：[USAGE.md](USAGE.md)
-- 设计与取舍（为什么两层、延迟 vs 成本、事件型边界等）：[docs/design.md](docs/design.md)
-- 各类型触发器模板：[examples/](examples/)
-- 给 Claude 的 skill：[skill/SKILL.md](skill/SKILL.md)
+Add to `~/.claude/settings.json`:
 
-## 触发器文件格式
-
-```yaml
----
-name: auto-commit-push
-enabled: true
-schedule:                 # 时间条件（可选）
-  every: day              # day | hour | week | month
-  at: "14:30"             # "HH:MM" | ":MM"
-  # on: 周一 / 1          # week 的星期 / month 的日号
-dedup: day                # 去重粒度，默认同 every
-probe: "test -f /p/flag"  # 条件探针（可选）：退出码 0 = 成立
-dedup_cmd: "stat -c %Y /p/flag"  # 事件实例键（可选），默认 "once"
----
-
-# 正文：触发后交给模型执行的自然语言步骤
+```json
+"env": {
+  "TRIGGERCTL_HOOK_REPLACE": "1",
+  "TRIGGERCTL_HOOK_JSON": "1"
+}
 ```
 
-至少声明 `schedule` 或 `probe` 之一。
+Strips prior trigger blocks from the session transcript before each injection.
+See [docs/proposals/user-prompt-submit-replacement-context.md](docs/proposals/user-prompt-submit-replacement-context.md).
 
-## 命令
+## Context policy
 
-| 命令 | 作用 |
+| Kind | Handler | In agent context? |
+|---|---|---|
+| time (`schedule`) | `triggerctl poll` | **No** |
+| event (`probe`) | `triggerctl poll` | **No** |
+| combo | `triggerctl poll` | **No** |
+| semantic session (`when` only) | UserPromptSubmit hook | **Yes** |
+| `inject: false` | doctor / statusLine | **No** |
+
+## Docs
+
+- [USAGE.md](USAGE.md) — usage and troubleshooting
+- [docs/design.md](docs/design.md) — design notes
+- [docs/proposals/user-prompt-submit-replacement-context.md](docs/proposals/user-prompt-submit-replacement-context.md) — upstream PR proposal
+- [examples/](examples/) — templates
+- [skill/SKILL.md](skill/SKILL.md) — agent skill
+
+## Commands
+
+| Command | Purpose |
 |---|---|
-| `triggerctl init [--root user\|project]` | 初始化注册根 |
-| `triggerctl add <name> [--every.. \| --probe..] [--category G]` | 注册触发器（建文件 + 重生成索引） |
-| `triggerctl list [--root all]` | 列出触发器 |
-| `triggerctl enable/disable <name>` | 启/停用 |
-| `triggerctl remove <name>` | 删除 |
-| `triggerctl sync` | 由触发器文件重新生成 `TRIGGERS.md` |
-| `triggerctl detect` | 便宜检测层：判定哪些 DUE（**不调模型**） |
-| `triggerctl poll [--dry-run]` | 检测 + 仅对 DUE 调模型执行 |
-| `triggerctl status [-n N]` | 看 run-log |
-| `triggerctl install --loop --interval 60` | 生成后台循环脚本 |
-| `triggerctl install --cron` | 打印 crontab 行 |
+| `triggerctl init [--root user\|project]` | Initialize registry root |
+| `triggerctl add <name> [--every \| --probe \| --when]` | Register trigger |
+| `triggerctl add --from <SOURCE> [--list]` | Install from Git/local |
+| `triggerctl update` | Update from lock file |
+| `triggerctl doctor` | Health check |
+| `triggerctl validate [--probe-test]` | Validate frontmatter |
+| `triggerctl list [--root all]` | List triggers |
+| `triggerctl sync` | Regenerate TRIGGERS.md ops index |
+| `triggerctl detect` / `poll` | Detection / execution |
+| `triggerctl install --hook` | UserPromptSubmit injection hook |
+| `triggerctl install --statusline` | Status bar |
+| `triggerctl install --loop` | Background poll loop |
 
-## 定时启动
-
-```bash
-# 无 cron：后台循环（每 60s 便宜检测一次，仅 DUE 时才调模型）
-triggerctl install --root user --loop --interval 60
-nohup ~/.claude/triggers/run-loop.sh 60 >/dev/null 2>&1 &
-
-# 有 cron：
-triggerctl install --root user --cron   # 打印 crontab 行后 crontab -e 粘进去
-```
-
-## 添加一个触发器（例）
-
-```bash
-# 定时型：每天 14:30
-triggerctl add nightly-backup --root user --category ops --every day --at 14:30
-# 条件型：标志文件出现就触发，用 mtime 做事件实例键
-triggerctl add on-done --root user --category watch \
-  --probe 'test -f /data/done.flag' --dedup-cmd 'stat -c %Y /data/done.flag'
-# 组合型：每天 02:00 且条件成立才跑
-triggerctl add gated --root user --every day --at 02:00 --probe 'test -f /data/ready'
-# 然后编辑生成的 .md 正文，写清要做什么；改完会自动进索引（add/remove/toggle 都会 sync）
-```
-
-## 测试
+## Tests
 
 ```bash
 cd triggerctl && PYTHONPATH=. python -m pytest -q
 ```
 
-## 取舍 / 已知边界
+## Timezone
 
-- **延迟**：轮询固有，≈ 检测间隔；缩间隔几乎不涨成本（检测便宜），唯有「模糊语义条件」必须靠模型判断时才贵。
-- **条件型**：探针应观察程序的**外部足迹**（marker / 退出码 / 产出文件 / 进程 / 日志），无需改目标程序；你能控制启动时优先「包一层」做 push。真正无外部痕迹且你不掌控启动的状态变化，是理论下界。
-- `probe` 每轮都会跑，务必**只读、轻量、快**。
+`export TRIGGERCTL_TZ_OFFSET=8` (default +8). Applies to schedule, poll, hook, statusLine.

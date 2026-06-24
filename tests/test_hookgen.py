@@ -9,7 +9,6 @@ def _root(tmp_path):
 def test_empty_when_no_session(tmp_path, monkeypatch):
     root = _root(tmp_path)
     monkeypatch.setattr(commands, "primary", lambda sel: root)
-    # only a time trigger -> not session -> no context block
     commands.cmd_add("daily", None, None, "day", "14:30", None, None,
                      None, None, None, False, False)
     assert hookgen.session_context([root]) == ""
@@ -19,12 +18,26 @@ def test_session_trigger_in_context(tmp_path, monkeypatch):
     root = _root(tmp_path)
     monkeypatch.setattr(commands, "primary", lambda sel: root)
     commands.cmd_add("feat", None, None, None, None, None, None,
-                     None, None, "完成一个特性时", False, False)
+                     None, None, "when a feature is done", False, False)
     block = hookgen.session_context([root])
     assert "feat" in block
-    assert "完成一个特性时" in block
-    assert "触发器系统" in block
-    assert "当前时间" in block  # 注入了换算后的当前时间
+    assert "when a feature is done" in block
+    assert hookgen.TRIGGER_BLOCK_PREFIX in block
+
+
+def test_combo_when_schedule_not_in_context(tmp_path, monkeypatch):
+    root = _root(tmp_path)
+    monkeypatch.setattr(commands, "primary", lambda sel: root)
+    p = root.path / "x-triggers" / "combo.md"
+    p.parent.mkdir(parents=True)
+    p.write_text(
+        "---\nname: combo\nenabled: true\nwhen: always\nschedule:\n  every: day\n  at: '02:00'\n---\n\nbody\n",
+        encoding="utf-8",
+    )
+    assert hookgen.session_context([root]) == ""
+    from triggerctl import registry
+    registry.sync(root)
+    assert "combo" not in root.index_file.read_text()
 
 
 def test_statusline_rest_window():
@@ -44,5 +57,5 @@ def test_disabled_session_excluded(tmp_path, monkeypatch):
     root = _root(tmp_path)
     monkeypatch.setattr(commands, "primary", lambda sel: root)
     commands.cmd_add("feat", None, None, None, None, None, None,
-                     None, None, "完成一个特性时", True, False)  # disabled
+                     None, None, "when done", True, False)
     assert hookgen.session_context([root]) == ""

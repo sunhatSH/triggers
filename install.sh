@@ -1,68 +1,123 @@
 #!/usr/bin/env bash
-# triggerctl 安装脚本 —— 把触发器能力嵌入 Claude Code Agent。
+# triggerctl install — embed triggers into Claude Code.
 #
-# 做四件事：
-#   1) pip 安装 triggerctl（可编辑），并把 `triggerctl` 命令放上 PATH
-#   2) 初始化用户级触发器根（含默认护栏触发器）
-#   3) 安装 `triggerctl` skill（让 Claude 能自助注册触发器）
-#   4) 写入 UserPromptSubmit hook（把 session 触发器条件每轮注入上下文 —— 这才是“嵌入”）
+# 1) Install triggerctl (editable) with a Python that has pip; link onto PATH
+# 2) Initialize user registry (includes default guardrail trigger)
+# 3) Install triggerctl skill
+# 4) Write UserPromptSubmit hook + statusLine
+# 5) Enable experimental hook replace env vars in settings.json
 #
-# 用法：  bash install.sh
-# 选项：  PREFIX_BIN=~/.local/bin bash install.sh   # 指定放 triggerctl 软链的目录
+# Usage:  bash install.sh
+# Options:  PYTHON=/opt/conda/bin/python3 bash install.sh
+#           PREFIX_BIN=~/.local/bin bash install.sh
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PY="${PYTHON:-python3}"
 CLAUDE_DIR="${CLAUDE_DIR:-$HOME/.claude}"
 
-echo "==> 1/4 安装 triggerctl (pip install -e)"
+_find_python() {
+  if [ -n "${PYTHON:-}" ]; then
+    echo "$PYTHON"
+    return 0
+  fi
+  local cand
+  for cand in \
+    /opt/conda/bin/python3 \
+    /usr/local/bin/python3 \
+    python3 \
+    python; do
+    if command -v "$cand" >/dev/null 2>&1 && "$cand" -m pip --version >/dev/null 2>&1; then
+      echo "$cand"
+      return 0
+    fi
+  done
+  return 1
+}
+
+if ! PY="$(_find_python)"; then
+  cat >&2 <<'EOF'
+!! No Python with pip found (many systems lack a `pip` command).
+
+Retry with an interpreter that has pip, e.g.:
+  PYTHON=/opt/conda/bin/python3 bash install.sh
+
+Or manually:
+  /opt/conda/bin/python3 -m pip install -e .
+  /opt/conda/bin/python3 -m triggerctl init --root user
+EOF
+  exit 1
+fi
+
+echo "==> 1/5 Install triggerctl ($PY -m pip install -e)"
+echo "    Python: $PY"
 "$PY" -m pip install -e "$REPO_DIR" -q
-# 找到 console script
+
 TCTL="$("$PY" - <<'EOF'
 import shutil, sys, os
 p = shutil.which("triggerctl")
 if not p:
-    # console script 常在解释器的 bin 目录
     cand = os.path.join(os.path.dirname(sys.executable), "triggerctl")
     p = cand if os.path.exists(cand) else ""
 print(p)
 EOF
 )"
 if [ -z "$TCTL" ]; then
-  echo "!! 找不到 triggerctl console script，安装可能失败" >&2; exit 1
+  echo "!! triggerctl console script not found; install may have failed" >&2
+  exit 1
 fi
 echo "    triggerctl: $TCTL"
 
-# 放到 PATH（优先 /usr/local/bin，否则 ~/.local/bin）
 BIN_DIR="${PREFIX_BIN:-}"
 if [ -z "$BIN_DIR" ]; then
   if [ -w /usr/local/bin ]; then BIN_DIR=/usr/local/bin; else BIN_DIR="$HOME/.local/bin"; fi
 fi
 mkdir -p "$BIN_DIR"
-ln -sf "$TCTL" "$BIN_DIR/triggerctl"
-echo "    软链: $BIN_DIR/triggerctl -> $TCTL"
-case ":$PATH:" in *":$BIN_DIR:"*) :;; *) echo "    ⚠️ $BIN_DIR 不在 PATH，请加入 PATH";; esac
+if [ "$TCTL" != "$BIN_DIR/triggerctl" ]; then
+  ln -sf "$TCTL" "$BIN_DIR/triggerctl"
+  echo "    symlink: $BIN_DIR/triggerctl -> $TCTL"
+else
+  echo "    already on PATH: $TCTL"
+fi
+case ":$PATH:" in *":$BIN_DIR:"*) :;; *) echo "    ⚠️ $BIN_DIR not on PATH; add it";; esac
 
-echo "==> 2/4 初始化用户级触发器根"
+echo "==> 2/5 Initialize user triggers root"
 "$TCTL" init --root user
 
-echo "==> 3/4 安装 triggerctl skill"
+echo "==> 3/5 Install triggerctl skill"
 mkdir -p "$CLAUDE_DIR/skills/triggerctl"
 cp "$REPO_DIR/skill/SKILL.md" "$CLAUDE_DIR/skills/triggerctl/SKILL.md"
 echo "    -> $CLAUDE_DIR/skills/triggerctl/SKILL.md"
 
-echo "==> 4/5 安装 UserPromptSubmit 注入 hook (settings.json)"
+echo "==> 4/5 Install UserPromptSubmit hook (settings.json)"
 "$TCTL" install --hook
 
-echo "==> 5/5 安装状态栏（确定性显示时间/提醒，不依赖模型）"
+echo "==> 5/5 Install statusLine + hook replace env"
 "$TCTL" install --statusline
+"$PY" - <<'PY'
+import json
+from pathlib import Path
+p = Path.home() / ".claude" / "settings.json"
+if not p.exists():
+    raise SystemExit(0)
+data = json.loads(p.read_text(encoding="utf-8"))
+env = data.setdefault("env", {})
+env.setdefault("TRIGGERCTL_HOOK_REPLACE", "1")
+env.setdefault("TRIGGERCTL_HOOK_JSON", "1")
+env.setdefault("TRIGGERCTL_TZ_OFFSET", "8")
+p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+print("    set TRIGGERCTL_HOOK_REPLACE=1, TRIGGERCTL_HOOK_JSON=1 in settings env")
+PY
 
 cat <<EOF
 
-✅ 安装完成。
-- 命令：  triggerctl --help
-- 列触发器： triggerctl list
-- 让定时/条件型自动跑（可选）： triggerctl install --root user --loop && nohup $CLAUDE_DIR/triggers/run-loop.sh 60 >/dev/null 2>&1 &
+✅ Done (Python: $PY).
+- triggerctl --help
+- triggerctl doctor
+- triggerctl list
+- Optional poll loop: triggerctl install --root user --loop && nohup $CLAUDE_DIR/triggers/run-loop.sh 60 >/dev/null 2>&1 &
 
-⚠️ hook / skill / 触发器都在**会话启动时**加载，请**新开一个 claude 会话**后再验证。
+Upgrade later:
+   $PY -m pip install -e $REPO_DIR
+
+⚠️ Hook/skill/triggers load at session start — open a new Claude session to verify.
 EOF

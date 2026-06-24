@@ -20,9 +20,13 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("init", help="初始化一个注册根")
     _add_root_arg(p)
 
-    p = sub.add_parser("add", help="注册一个新触发器")
-    p.add_argument("name")
+    p = sub.add_parser("add", help="注册新触发器，或 --from 从 Git/本地安装")
+    p.add_argument("name", nargs="?", help="触发器名称（--from 时可省略）")
     _add_root_arg(p)
+    p.add_argument("--from", dest="source", metavar="SOURCE",
+                   help="从 GitHub(owner/repo[/path])、git URL 或本地路径安装")
+    p.add_argument("--list", dest="list_only", action="store_true",
+                   help="配合 --from：只列出 SOURCE 中的触发器，不安装")
     p.add_argument("--category", help="子目录分组（生成 <category>-triggers/）")
     p.add_argument("--every", choices=["day", "hour", "week", "month"], help="定时：周期")
     p.add_argument("--at", help='定时：时刻 "HH:MM" 或 ":MM"')
@@ -72,6 +76,16 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("hook", help="输出 session 触发器上下文块（供 UserPromptSubmit hook 调用）")
     sub.add_parser("statusline", help="输出状态栏文本（供 Claude Code statusLine 调用）")
 
+    sub.add_parser("doctor", help="检查安装、hook、索引、轮询等是否正常")
+
+    p = sub.add_parser("update", help="按 triggers-lock.json 更新已安装的远程触发器")
+    _add_root_arg(p)
+    p.add_argument("--force", action="store_true", help="覆盖本地已改动的同名触发器")
+
+    p = sub.add_parser("validate", help="校验触发器 frontmatter、重名、索引是否过期")
+    _add_root_arg(p)
+    p.add_argument("--probe-test", action="store_true", help="试跑 probe/dedup_cmd（应只读）")
+
     return ap
 
 
@@ -108,7 +122,14 @@ def main(argv=None) -> int:
     if c == "add":
         return commands.cmd_add(args.name, args.root, args.category, args.every, args.at,
                                 args.on, args.dedup, args.probe, args.dedup_cmd,
-                                args.when, args.disabled, args.force, args.locked)
+                                args.when, args.disabled, args.force, args.locked,
+                                args.source, args.list_only)
+    if c == "doctor":
+        return commands.cmd_doctor()
+    if c == "update":
+        return commands.cmd_update(args.root, args.force)
+    if c == "validate":
+        return commands.cmd_validate(args.root, args.probe_test)
     if c == "remove":
         return commands.cmd_remove(args.name, args.root)
     if c == "enable":

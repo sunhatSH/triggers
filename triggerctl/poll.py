@@ -12,6 +12,7 @@ from typing import List, Optional
 from . import detect, execute, runlog
 from .model import discover
 from .roots import Root
+from .tz import effective_now
 
 
 @dataclass
@@ -47,7 +48,7 @@ def poll(
     claude_bin: Optional[str] = None,
     extra_args: Optional[List[str]] = None,
 ) -> Report:
-    now = now or datetime.now()
+    now = now or effective_now()
     rep = Report(started_at=now.isoformat(timespec="seconds"))
 
     for root in roots:

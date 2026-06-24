@@ -3,7 +3,12 @@
 这些是各类型触发器的模板。两种用法：
 
 1. **直接拷贝**到某个注册根（`~/.claude/triggers/<分组>/` 或 `<项目>/triggers/<分组>/`），改好正文里的路径/动作，然后 `triggerctl sync`。
-2. **用 CLI 生成**再编辑正文，例如：
+2. **从本仓库安装**（推荐，会写入 `triggers-lock.json`）：
+   ```bash
+   triggerctl add --from ./examples/time-daily-backup.md --root user
+   triggerctl add --from sunhatSH/triggers/examples --list   # 远程预览
+   ```
+3. **用 CLI 生成**再编辑正文，例如：
    ```bash
    triggerctl add daily-backup --root user --category ops --every day --at 02:00
    ```

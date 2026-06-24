@@ -22,7 +22,8 @@ def test_add_creates_file_and_index(tmp_path, monkeypatch):
     triggers = discover(root)
     assert len(triggers) == 1 and triggers[0].name == "daily"
     assert root.index_file.exists()
-    assert "daily" in root.index_file.read_text()
+    idx = root.index_file.read_text()
+    assert "daily" not in idx  # time 型不进 TRIGGERS 索引
 
 
 def test_disable_toggles(tmp_path, monkeypatch):
@@ -75,21 +76,33 @@ def test_locked_cannot_disable(tmp_path, monkeypatch):
 
 
 def test_init_seeds_locked_guardrail(tmp_path, monkeypatch):
-    root = _root(tmp_path)
+    root = Root("user", tmp_path / ".claude" / "triggers")
     monkeypatch.setattr(commands, "primary", lambda sel: root)
-    commands.cmd_init(None)
+    commands.cmd_init("user")
     t = find([root], commands.WARN_NAME)
     assert t is not None and t.locked and t.kind == "session"
 
 
-def test_sync_writes_claude_block(tmp_path, monkeypatch):
+def test_init_project_skips_user_guardrail(tmp_path, monkeypatch):
+    root = Root("project", tmp_path / "triggers")
+    monkeypatch.setattr(commands, "primary", lambda sel: root)
+    commands.cmd_init("project")
+    assert find([root], commands.WARN_NAME) is None
+
+
+def test_sync_strips_claude_block(tmp_path, monkeypatch):
     root = _root(tmp_path)
     monkeypatch.setattr(commands, "primary", lambda sel: root)
+    root.claude_md.parent.mkdir(parents=True, exist_ok=True)
+    root.claude_md.write_text(
+        "# x\n\n<!-- triggerctl:session-triggers:start -->\nold\n<!-- triggerctl:session-triggers:end -->\n",
+        encoding="utf-8",
+    )
     commands.cmd_add("feat", None, None, None, None, None, None,
-                     None, None, "完成一个特性时", False, False)  # add() syncs
+                     None, None, "完成一个特性时", False, False)
     cm = root.claude_md.read_text()
-    assert "triggerctl:session-triggers:start" in cm
-    assert "feat" in cm and "完成一个特性时" in cm
+    assert "triggerctl:session-triggers:start" not in cm
+    assert "feat" in root.index_file.read_text()
 
 
 def test_runlog_dedup(tmp_path):

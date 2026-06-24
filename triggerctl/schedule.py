@@ -1,5 +1,8 @@
 """Turn a `schedule` block into (target datetime, period key) for the current period.
 
+`now` should be in the user's local timezone — use `tz.effective_now()` when calling
+from poll/detect (respects TRIGGERCTL_TZ_OFFSET; default +8 Beijing).
+
 schedule:
   every: day | hour | week | month
   at:    "HH:MM" | ":MM" | "HH:MM"   (optional; default 00:00, hour-type uses current hour)

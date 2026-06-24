@@ -13,6 +13,7 @@ from typing import Optional, Set, Tuple
 
 from . import schedule as sched
 from .model import Trigger
+from .tz import effective_now
 
 PROBE_TIMEOUT = 30
 
@@ -43,7 +44,7 @@ def evaluate(
     now: Optional[datetime] = None,
     done: Optional[Set[Tuple[str, str]]] = None,
 ) -> Decision:
-    now = now or datetime.now()
+    now = now or effective_now()
     done = done or set()
 
     if not trigger.enabled:

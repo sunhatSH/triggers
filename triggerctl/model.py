@@ -9,7 +9,7 @@ from . import frontmatter
 from .roots import Root
 
 SKIP_NAMES = {"TRIGGERS.md", "README.md"}
-SKIP_DIRS = {".state", ".git"}
+SKIP_DIRS = {".state", ".git", ".cache"}
 
 
 @dataclass
@@ -45,7 +45,25 @@ class Trigger:
 
     @property
     def is_session(self) -> bool:
+        """Has a semantic ``when`` field (may coexist with schedule/probe)."""
         return bool(self.when)
+
+    @property
+    def is_semantic_session(self) -> bool:
+        """Session trigger judged in-conversation — no schedule/probe rules."""
+        return bool(self.when) and not self.schedule and not self.probe
+
+    @property
+    def inject(self) -> bool:
+        """Whether this trigger may enter session context (hook). Default true."""
+        if "inject" in self.meta:
+            return bool(self.meta.get("inject"))
+        return True
+
+    @property
+    def in_context(self) -> bool:
+        """Eligible for hook injection and TRIGGERS ops index."""
+        return self.enabled and self.is_semantic_session and self.inject
 
     @property
     def valid(self) -> bool:
@@ -119,7 +137,8 @@ def discover(root: Root) -> List[Trigger]:
 
 
 def find(roots: List[Root], name: str) -> Optional[Trigger]:
-    for root in roots:
+    ordered = sorted(roots, key=lambda r: (0 if r.kind == "project" else 1, str(r.path)))
+    for root in ordered:
         for t in discover(root):
             if t.name == name:
                 return t
