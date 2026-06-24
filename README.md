@@ -18,17 +18,34 @@ of truth, generated index, multiple registry roots).
   - User: `~/.claude/triggers/`
   - Project: `<project>/triggers/`
 - **Idempotency**: `.state/run-log.jsonl` keyed by `(name, key)`.
-- **Bundled optional triggers**: `bundled/` ships git/rest templates; `init` seeds only the locked guardrail. Install with `triggerctl add --from ./bundled/...`.
+- **Optional templates**: `catalog/` (`session/` + `poll/`); `init` seeds only the locked guardrail.
 - **>5 warning**: counts **hook-eligible** session triggers only (`in_context`), not time/event or `inject: false`.
+
+## Project layout
+
+```
+triggerctl/              # repo root (GitHub: sunhatSH/triggers)
+├── triggerctl/          # Python package + CLI
+├── skill/               # agent skill (installed on setup)
+├── catalog/             # optional templates
+│   ├── session/         # semantic session (hook)
+│   └── poll/            # time / event / combo
+├── docs/                # design, integrations, proposals, admin
+├── tests/               # pytest; tests/manual/ for harnesses
+├── install.sh           # pip -e, init, hooks, skill
+└── bundled/ examples/   # redirect READMEs → catalog/
+```
 
 ## Install
 
 ```bash
-cd triggers && bash install.sh
+git clone git@github.com:sunhatSH/triggers.git
+cd triggers
+bash install.sh
 ```
 
-Installs `triggerctl` on PATH, initializes the user registry, and configures Claude Code
-and Hermes Agent and Codex CLI (default `AGENT=all`). **Start a new session** after install.
+Installs `triggerctl` on PATH, initializes the user registry, and configures Claude Code,
+Hermes Agent, and Codex CLI (default `AGENT=all`). **Start a new session** after install.
 
 ```bash
 AGENT=claude bash install.sh   # Claude only
@@ -59,7 +76,7 @@ triggerctl install --hermes        # hook + skill + hooks_auto_accept
 triggerctl install --hermes-hook   # hook only
 ```
 
-See [docs/hermes.md](docs/hermes.md).
+See [docs/integrations/hermes.md](docs/integrations/hermes.md).
 
 ### Codex CLI
 
@@ -68,7 +85,7 @@ triggerctl install --codex        # hook + skill
 triggerctl install --codex-hook   # hook only
 ```
 
-See [docs/codex.md](docs/codex.md).
+See [docs/integrations/codex.md](docs/integrations/codex.md).
 
 ## Context policy
 
@@ -83,9 +100,9 @@ See [docs/codex.md](docs/codex.md).
 ## Docs
 
 - [USAGE.md](USAGE.md) — usage and troubleshooting
-- [docs/design.md](docs/design.md) — design notes
-- [docs/proposals/user-prompt-submit-replacement-context.md](docs/proposals/user-prompt-submit-replacement-context.md) — upstream PR proposal
-- [examples/](examples/) — templates
+- [docs/README.md](docs/README.md) — documentation index
+- [docs/design.md](docs/design.md) — architecture
+- [catalog/README.md](catalog/README.md) — optional templates
 - [skill/SKILL.md](skill/SKILL.md) — agent skill
 
 ## Commands
@@ -116,9 +133,9 @@ See [docs/codex.md](docs/codex.md).
 ## Tests
 
 ```bash
-cd triggerctl && PYTHONPATH=. python -m pytest -q
-python3 scripts/test-statusline.py        # statusLine: rest + >5 warning
-python3 scripts/test-statusline.py --demo # example output lines
+cd triggers && PYTHONPATH=. python -m pytest -q
+python3 tests/manual/test_statusline.py        # statusLine: rest + >5 warning
+python3 tests/manual/test_statusline.py --demo # example output lines
 ```
 
 ## Timezone

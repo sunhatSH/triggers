@@ -31,7 +31,9 @@ def skill_path() -> Path:
 
 
 def default_skill_source() -> Path:
-    return Path(__file__).resolve().parent.parent / "skill" / "SKILL.md"
+    from triggerctl.paths import skill_source
+
+    return skill_source()
 
 
 def load_config(path: Optional[Path] = None) -> Tuple[Path, Dict[str, Any]]:

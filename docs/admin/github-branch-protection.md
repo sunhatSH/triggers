@@ -21,7 +21,7 @@ gh auth refresh -h github.com -s repo
 Then:
 
 ```bash
-bash scripts/apply-branch-protection.sh
+bash scripts/admin/apply-branch-protection.sh
 ```
 
 This configures **all branches** (`~ALL`):

@@ -72,7 +72,7 @@ def cmd_init(selector: Optional[str]) -> int:
     (root.state_dir / "run-log.jsonl").touch(exist_ok=True)
     if root.kind == "user" and _seed_defaults(root):
         print(f"Seeded default guardrail trigger: {WARN_NAME} (locked)")
-        print("Optional bundled triggers: triggerctl add --from ./bundled/<path> --root user")
+        print("Optional templates: triggerctl add --from ./catalog/<session|poll>/<name>.md --root user")
     n = registry.sync(root)
     print(f"Initialized {root}  ({n} trigger(s) indexed)")
     print(f"Ops index: {root.index_file}")

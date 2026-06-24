@@ -6,7 +6,7 @@
 # Classic token: gh auth login -h github.com -s repo
 #
 # Usage:
-#   bash scripts/apply-branch-protection.sh
+#   bash scripts/admin/apply-branch-protection.sh
 set -euo pipefail
 
 OWNER="${OWNER:-sunhatSH}"

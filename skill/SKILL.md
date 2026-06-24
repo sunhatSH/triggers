@@ -9,7 +9,7 @@ description: >-
 
 # triggerctl
 
-Manage triggers via `triggerctl` (on PATH after `install.sh`). Engine docs: [triggerctl/README.md](/mnt/afs_toolcall/sunhao4/triggerctl/README.md).
+Manage triggers via `triggerctl` (on PATH after `install.sh`). Engine docs: [README](https://github.com/sunhatSH/triggers/blob/dev/README.md).
 
 > This environment often lacks bare `pip`. Use `bash install.sh` or `/opt/conda/bin/python3 -m pip install -e <repo>`.
 

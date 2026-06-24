@@ -2,9 +2,9 @@
 """Test statusLine output (rest window + too-many-triggers warning).
 
 Usage (from triggerctl repo root):
-  python3 scripts/test-statusline.py           # synthetic + live checks
-  python3 scripts/test-statusline.py --live    # live environment only
-  python3 scripts/test-statusline.py --demo    # print example lines only
+  python3 tests/manual/test_statusline.py           # synthetic + live checks
+  python3 tests/manual/test_statusline.py --live    # live environment only
+  python3 tests/manual/test_statusline.py --demo    # print example lines only
 
 Does not modify your trigger registry.
 """
@@ -18,7 +18,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 

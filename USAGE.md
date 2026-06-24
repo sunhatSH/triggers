@@ -35,7 +35,7 @@ triggerctl init --root user
 triggerctl install --hermes
 ```
 
-See [docs/hermes.md](docs/hermes.md) for Hermes details.
+See [docs/integrations/hermes.md](docs/integrations/hermes.md) for Hermes details.
 
 Codex-only setup after a manual pip install:
 
@@ -44,7 +44,7 @@ triggerctl init --root user
 triggerctl install --codex
 ```
 
-See [docs/codex.md](docs/codex.md) for Codex details.
+See [docs/integrations/codex.md](docs/integrations/codex.md) for Codex details.
 
 ## Trigger types
 
@@ -66,7 +66,7 @@ See [docs/codex.md](docs/codex.md) for Codex details.
 | User | `~/.claude/triggers/` | Global, all projects |
 | Project | `<project>/triggers/` | Committed with the repo |
 | System | `~/.claude/triggers/system-triggers/` | Guardrails (e.g. `too-many-triggers-warning`; only this one is seeded on `init`) |
-| Bundled (repo) | `triggerctl/bundled/` | Optional templates — install with `add --from`, not auto-installed |
+| Catalog (repo) | `catalog/` | Optional templates — `session/` (hook) and `poll/` (time/event); install with `add --from` |
 
 `TRIGGERS.md` is an **ops index only** — not injected into agent context.
 
@@ -98,8 +98,8 @@ triggerctl codex-hook                          # session JSON (Codex UserPromptS
 Install from Git or local paths (similar to `skills add`):
 
 ```bash
-triggerctl add --from sunhatSH/triggers/examples --list
-triggerctl add --from ./examples/time-daily-backup.md --root user
+triggerctl add --from sunhatSH/triggers/catalog/poll --list
+triggerctl add --from ./catalog/poll/daily-backup.md --root user
 triggerctl update --root user
 ```
 
