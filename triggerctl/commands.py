@@ -89,7 +89,7 @@ def cmd_init(selector: Optional[str]) -> int:
     (root.state_dir / "run-log.jsonl").touch(exist_ok=True)
     if root.kind == "user" and _seed_defaults(root):
         print(f"Seeded default guardrail trigger: {WARN_NAME} (locked)")
-        print("Optional library (not installed): triggerctl library list")
+        print("Optional library (not installed): triggerctl library sync && triggerctl library list")
         print("  Install: triggerctl library install rest-reminder")
     elif root.kind == "user" and _refresh_guardrail_if_stale(root):
         print(f"Updated stale guardrail trigger: {WARN_NAME} (>5 threshold)")
@@ -101,8 +101,27 @@ def cmd_init(selector: Optional[str]) -> int:
     return 0
 
 
+def cmd_library_sync(source: Optional[str]) -> int:
+    from . import library as lib
+    from .paths import local_library_dir
+
+    try:
+        dest = lib.sync_library(source)
+    except Exception as e:  # noqa: BLE001
+        print(f"错误：{e}", file=sys.stderr)
+        return 2
+    remote = source or lib.default_remote()
+    n = len(lib.list_entries(str(dest)))
+    print(f"Synced library → {dest}")
+    print(f"  source: {remote}")
+    print(f"  entries: {n}")
+    print(f"  list: triggerctl library list")
+    return 0
+
+
 def cmd_library_list(source: Optional[str]) -> int:
     from . import library as lib
+    from .paths import local_library_dir
 
     try:
         entries = lib.list_entries(source)
@@ -112,8 +131,11 @@ def cmd_library_list(source: Optional[str]) -> int:
     if not entries:
         print("（库中无触发器）")
         return 0
-    src = source or lib.default_source()
-    print(f"Library: {src}  ({len(entries)} trigger(s), not installed until you run library install)\n")
+    if source:
+        label = source
+    else:
+        label = str(local_library_dir())
+    print(f"Library: {label}  ({len(entries)} trigger(s), not installed until you run library install)\n")
     rows = [
         [
             e.name,

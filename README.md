@@ -18,24 +18,21 @@ of truth, generated index, multiple registry roots).
   - User: `~/.claude/triggers/`
   - Project: `<project>/triggers/`
 - **Idempotency**: `.state/run-log.jsonl` keyed by `(name, key)`.
-- **Optional library**: `library/` ships templates; `init` seeds only the locked guardrail. List/install with `triggerctl library`.
+- **Optional library**: separate [trigger-library](https://github.com/sunhatSH/trigger-library) repo; synced to `~/.local/share/triggerctl/library`. `init` only seeds the locked guardrail.
 - **>5 warning**: counts **hook-eligible** session triggers only (`in_context`), not time/event or `inject: false`.
 
 ## Project layout
 
 ```
-triggerctl/              # repo root (GitHub: sunhatSH/triggers)
+triggerctl/              # engine only (GitHub: sunhatSH/triggers)
 ├── triggerctl/          # Python package + CLI
-├── skill/               # agent skill (installed on setup)
-├── library/             # optional trigger library (manifest + templates)
-│   ├── manifest.yaml    # index for `triggerctl library list`
-│   ├── session/         # semantic session (hook)
-│   └── poll/            # time / event / combo
-├── catalog/             # redirect → library/
-├── docs/                # design, integrations, proposals, admin
-├── tests/               # pytest; tests/manual/ for harnesses
-├── install.sh           # pip -e, init, hooks, skill
-└── bundled/ examples/   # redirect READMEs → catalog/
+├── skill/               # agent skill
+├── docs/ tests/ install.sh
+└── library/README.md    # pointer → separate trigger-library repo
+
+trigger-library/           # separate repo: sunhatSH/trigger-library
+├── manifest.yaml
+├── session/ poll/
 ```
 
 ## Install
@@ -46,9 +43,10 @@ triggerctl/              # repo root (GitHub: sunhatSH/triggers)
 curl -fsSL https://raw.githubusercontent.com/sunhatSH/triggers/main/install-remote.sh | bash
 ```
 
-Then browse the built-in library (not auto-installed):
+Then sync the optional trigger library (not auto-installed into your registry):
 
 ```bash
+triggerctl library sync
 triggerctl library list
 triggerctl library install rest-reminder auto-commit-push
 ```
@@ -127,15 +125,16 @@ See [docs/integrations/codex.md](docs/integrations/codex.md).
 - [USAGE.md](USAGE.md) — usage and troubleshooting
 - [docs/README.md](docs/README.md) — documentation index
 - [docs/design.md](docs/design.md) — architecture
-- [library/README.md](library/README.md) — optional trigger library
+- [trigger-library](https://github.com/sunhatSH/trigger-library) — optional templates (separate repo)
 - [skill/SKILL.md](skill/SKILL.md) — agent skill
 
 ## Commands
 
 | Command | Purpose |
 |---|---|
-| `triggerctl library list` | List optional triggers in the official library (remote) |
-| `triggerctl library install <name>` | Install trigger(s) from the library by name |
+| `triggerctl library sync [--source SRC]` | Sync library to `~/.local/share/triggerctl/library` |
+| `triggerctl library list [--source SRC]` | List triggers (default: local fixed dir) |
+| `triggerctl library install <name>` | Install from local library by name |
 | `triggerctl init [--root user\|project]` | Initialize registry root |
 | `triggerctl add <name> [--every \| --probe \| --when]` | Register trigger |
 | `triggerctl add --from <SOURCE> [--list]` | Install from Git/local |

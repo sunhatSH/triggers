@@ -1,6 +1,7 @@
-"""Repository layout paths (editable install: repo root is parent of package)."""
+"""Repository and library layout paths."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 
@@ -12,10 +13,19 @@ def skill_source() -> Path:
     return repo_root() / "skill" / "SKILL.md"
 
 
-def library_dir() -> Path:
-    return repo_root() / "library"
+def local_library_dir() -> Path:
+    """Fixed local directory for the trigger library (sync target, default for list/install)."""
+    env = os.environ.get("TRIGGERCTL_LIBRARY", "").strip()
+    if env:
+        return Path(env).expanduser().resolve()
+    return Path.home() / ".local" / "share" / "triggerctl" / "library"
+
+
+def default_library_remote() -> str:
+    """Default remote used by `triggerctl library sync` (separate repo from triggerctl)."""
+    return os.environ.get("TRIGGERCTL_LIBRARY_REMOTE", "sunhatSH/trigger-library").strip()
 
 
 def catalog_dir() -> Path:
-    """Deprecated alias for library_dir()."""
-    return library_dir()
+    """Deprecated alias for local_library_dir()."""
+    return local_library_dir()

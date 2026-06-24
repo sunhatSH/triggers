@@ -1,8 +1,5 @@
-# Moved → `library/`
+# Moved → separate `trigger-library` repo
 
-See **[../library/README.md](../library/README.md)**.
+See **[sunhatSH/trigger-library](https://github.com/sunhatSH/trigger-library)**.
 
-```bash
-triggerctl library list
-triggerctl library install rest-reminder
-```
+Local copy: `~/.local/share/triggerctl/library` via `triggerctl library sync`.

@@ -116,23 +116,30 @@ def build_parser() -> argparse.ArgumentParser:
     _add_root_arg(p)
     p.add_argument("--probe-test", action="store_true", help="试跑 probe/dedup_cmd（应只读）")
 
-    lib = sub.add_parser("library", help="官方触发器库：列举 / 远程安装（默认不自动安装）")
+    lib = sub.add_parser("library", help="触发器库：sync / list / install（库与 triggerctl 分离）")
     lib_sub = lib.add_subparsers(dest="library_cmd", required=True)
 
-    p = lib_sub.add_parser("list", help="列出库中可选触发器（不安装）")
+    p = lib_sub.add_parser("sync", help="同步库到本地固定目录（默认 ~/.local/share/triggerctl/library）")
     p.add_argument(
         "--source",
         metavar="SOURCE",
-        help="库位置（默认 sunhatSH/triggers/library 或本地 ./library）",
+        help="GitHub owner/repo、git URL 或本地路径（默认 sunhatSH/trigger-library）",
     )
 
-    p = lib_sub.add_parser("install", help="按名称从库安装触发器")
+    p = lib_sub.add_parser("list", help="列出库中可选触发器（默认读本地固定目录）")
+    p.add_argument(
+        "--source",
+        metavar="SOURCE",
+        help="临时指定库位置（GitHub / URL / 本地），不写入固定目录",
+    )
+
+    p = lib_sub.add_parser("install", help="按名称从库安装触发器（默认读本地固定目录）")
     p.add_argument("names", nargs="*", help="触发器名称（manifest 中的 name）")
     _add_root_arg(p)
     p.add_argument(
         "--source",
         metavar="SOURCE",
-        help="库位置（默认 sunhatSH/triggers/library 或本地 ./library）",
+        help="临时指定库位置（GitHub / URL / 本地）",
     )
     p.add_argument("--all", dest="install_all", action="store_true", help="安装库中全部触发器")
     p.add_argument("--force", action="store_true", help="覆盖同名已安装触发器")
@@ -227,6 +234,8 @@ def main(argv=None) -> int:
     if c == "statusline":
         return commands.cmd_statusline()
     if c == "library":
+        if args.library_cmd == "sync":
+            return commands.cmd_library_sync(args.source)
         if args.library_cmd == "list":
             return commands.cmd_library_list(args.source)
         if args.library_cmd == "install":
