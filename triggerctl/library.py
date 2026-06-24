@@ -113,7 +113,7 @@ def _resolve_base(source: Optional[str]) -> Path:
     dest = local_library_dir()
     if not (dest / "manifest.yaml").is_file() and not any(dest.rglob("*.md")):
         raise FileNotFoundError(
-            f"Local library missing at {dest}. Run: triggerctl library sync"
+            f"Local library missing at {dest}. Run: triggerctl fetch"
         )
     return dest
 

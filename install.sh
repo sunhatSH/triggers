@@ -86,14 +86,14 @@ echo "==> Initialize user triggers root"
 "$TCTL" init --root user
 
 echo "==> Sync trigger library (optional templates, not auto-installed)"
-if "$TCTL" library sync; then
+if "$TCTL" fetch; then
   echo "    library -> $("$PY" - <<'PY'
 from pathlib import Path
 print(Path.home() / ".local/share/triggerctl/library")
 PY
 )"
 else
-  echo "    ⚠️ library sync failed (offline?). Retry: triggerctl library sync"
+  echo "    ⚠️ fetch failed (offline?). Retry: triggerctl fetch"
 fi
 
 install_claude() {

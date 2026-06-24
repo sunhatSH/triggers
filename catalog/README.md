@@ -2,4 +2,4 @@
 
 See **[sunhatSH/trigger-library](https://github.com/sunhatSH/trigger-library)**.
 
-Local copy: `~/.local/share/triggerctl/library` via `triggerctl library sync`.
+Local copy: `~/.local/share/triggerctl/library` via `triggerctl fetch`.

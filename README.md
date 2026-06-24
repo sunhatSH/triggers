@@ -46,9 +46,9 @@ curl -fsSL https://raw.githubusercontent.com/sunhatSH/triggers/main/install-remo
 Then sync the optional trigger library (not auto-installed into your registry):
 
 ```bash
-triggerctl library sync
-triggerctl library list
-triggerctl library install rest-reminder auto-commit-push
+triggerctl fetch
+triggerctl list --store
+triggerctl add rest-reminder auto-commit-push --store
 ```
 
 Clones to `~/.local/share/triggerctl/repo` and runs `install.sh`. Options:
@@ -132,9 +132,9 @@ See [docs/integrations/codex.md](docs/integrations/codex.md).
 
 | Command | Purpose |
 |---|---|
-| `triggerctl library sync [--source SRC]` | Sync library to `~/.local/share/triggerctl/library` |
-| `triggerctl library list [--source SRC]` | List triggers (default: local fixed dir) |
-| `triggerctl library install <name>` | Install from local library by name |
+| `triggerctl fetch [--source SRC]` | Sync store → `~/.local/share/triggerctl/library` |
+| `triggerctl list --store [--source SRC]` | List available templates (not installed) |
+| `triggerctl add <name> --store` | Install from local store by name |
 | `triggerctl init [--root user\|project]` | Initialize registry root |
 | `triggerctl add <name> [--every \| --probe \| --when]` | Register trigger |
 | `triggerctl add --from <SOURCE> [--list]` | Install from Git/local |

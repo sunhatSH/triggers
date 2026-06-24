@@ -23,13 +23,19 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("init", help="初始化一个注册根")
     _add_root_arg(p)
 
-    p = sub.add_parser("add", help="注册新触发器，或 --from 从 Git/本地安装")
-    p.add_argument("name", nargs="?", help="触发器名称（--from 时可省略）")
+    p = sub.add_parser("add", help="注册新触发器，或 --from / --store 从库安装")
+    p.add_argument("names", nargs="*", help="触发器名称")
     _add_root_arg(p)
     p.add_argument("--from", dest="source", metavar="SOURCE",
                    help="从 GitHub(owner/repo[/path])、git URL 或本地路径安装")
     p.add_argument("--list", dest="list_only", action="store_true",
                    help="配合 --from：只列出 SOURCE 中的触发器，不安装")
+    p.add_argument("--store", action="store_true",
+                   help="从本地库（~/.local/share/triggerctl/library）按名称安装")
+    p.add_argument("--all", dest="install_all", action="store_true",
+                   help="配合 --store：安装库中全部触发器")
+    p.add_argument("--source", dest="store_source", metavar="SOURCE",
+                   help="配合 --store / list --store：临时指定库位置")
     p.add_argument("--category", help="子目录分组（生成 <category>-triggers/）")
     p.add_argument("--every", choices=["day", "hour", "week", "month"], help="定时：周期")
     p.add_argument("--at", help='定时：时刻 "HH:MM" 或 ":MM"')
@@ -51,8 +57,11 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("name")
         _add_root_arg(p)
 
-    p = sub.add_parser("list", help="列出触发器")
+    p = sub.add_parser("list", help="列出已安装触发器，或 --store 列举库中可选模板")
     _add_root_arg(p)
+    p.add_argument("--store", action="store_true", help="列举库中可选触发器（未安装）")
+    p.add_argument("--source", dest="store_source", metavar="SOURCE",
+                   help="配合 --store：临时指定库位置")
 
     p = sub.add_parser("sync", help="由触发器文件重新生成 TRIGGERS.md 索引")
     _add_root_arg(p)
@@ -106,6 +115,13 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("codex-hook", help="Session trigger JSON (Codex UserPromptSubmit)")
     sub.add_parser("statusline", help="Status line text (Claude Code statusLine)")
 
+    p = sub.add_parser("fetch", help="同步触发器库到本地固定目录")
+    p.add_argument(
+        "--source",
+        metavar="SOURCE",
+        help="GitHub owner/repo、git URL 或本地路径（默认 sunhatSH/trigger-library）",
+    )
+
     sub.add_parser("doctor", help="检查安装、hook、索引、轮询等是否正常")
 
     p = sub.add_parser("update", help="按 triggers-lock.json 更新已安装的远程触发器")
@@ -115,34 +131,6 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("validate", help="校验触发器 frontmatter、重名、索引是否过期")
     _add_root_arg(p)
     p.add_argument("--probe-test", action="store_true", help="试跑 probe/dedup_cmd（应只读）")
-
-    lib = sub.add_parser("library", help="触发器库：sync / list / install（库与 triggerctl 分离）")
-    lib_sub = lib.add_subparsers(dest="library_cmd", required=True)
-
-    p = lib_sub.add_parser("sync", help="同步库到本地固定目录（默认 ~/.local/share/triggerctl/library）")
-    p.add_argument(
-        "--source",
-        metavar="SOURCE",
-        help="GitHub owner/repo、git URL 或本地路径（默认 sunhatSH/trigger-library）",
-    )
-
-    p = lib_sub.add_parser("list", help="列出库中可选触发器（默认读本地固定目录）")
-    p.add_argument(
-        "--source",
-        metavar="SOURCE",
-        help="临时指定库位置（GitHub / URL / 本地），不写入固定目录",
-    )
-
-    p = lib_sub.add_parser("install", help="按名称从库安装触发器（默认读本地固定目录）")
-    p.add_argument("names", nargs="*", help="触发器名称（manifest 中的 name）")
-    _add_root_arg(p)
-    p.add_argument(
-        "--source",
-        metavar="SOURCE",
-        help="临时指定库位置（GitHub / URL / 本地）",
-    )
-    p.add_argument("--all", dest="install_all", action="store_true", help="安装库中全部触发器")
-    p.add_argument("--force", action="store_true", help="覆盖同名已安装触发器")
 
     return ap
 
@@ -178,10 +166,11 @@ def main(argv=None) -> int:
     if c == "init":
         return commands.cmd_init(args.root)
     if c == "add":
-        return commands.cmd_add(args.name, args.root, args.category, args.every, args.at,
+        return commands.cmd_add(args.names, args.root, args.category, args.every, args.at,
                                 args.on, args.dedup, args.probe, args.dedup_cmd,
                                 args.when, args.disabled, args.force, args.locked,
-                                args.source, args.list_only)
+                                args.source, args.list_only, args.store, args.install_all,
+                                args.store_source)
     if c == "doctor":
         return commands.cmd_doctor()
     if c == "update":
@@ -195,9 +184,11 @@ def main(argv=None) -> int:
     if c == "disable":
         return commands.cmd_toggle(args.name, args.root, False)
     if c == "list":
-        return commands.cmd_list(args.root)
+        return commands.cmd_list(args.root, args.store, args.store_source)
     if c == "sync":
         return commands.cmd_sync(args.root)
+    if c == "fetch":
+        return commands.cmd_fetch(args.source)
     if c == "status":
         return commands.cmd_status(args.root, args.limit)
     if c == "detect":
@@ -233,15 +224,6 @@ def main(argv=None) -> int:
         return commands.cmd_codex_hook()
     if c == "statusline":
         return commands.cmd_statusline()
-    if c == "library":
-        if args.library_cmd == "sync":
-            return commands.cmd_library_sync(args.source)
-        if args.library_cmd == "list":
-            return commands.cmd_library_list(args.source)
-        if args.library_cmd == "install":
-            return commands.cmd_library_install(
-                args.names, args.root, args.force, args.install_all, args.source
-            )
     return 2
 
 

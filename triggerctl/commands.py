@@ -89,8 +89,8 @@ def cmd_init(selector: Optional[str]) -> int:
     (root.state_dir / "run-log.jsonl").touch(exist_ok=True)
     if root.kind == "user" and _seed_defaults(root):
         print(f"Seeded default guardrail trigger: {WARN_NAME} (locked)")
-        print("Optional library (not installed): triggerctl library sync && triggerctl library list")
-        print("  Install: triggerctl library install rest-reminder")
+        print("Optional templates (not installed): triggerctl fetch && triggerctl list --store")
+        print("  Install: triggerctl add rest-reminder --store")
     elif root.kind == "user" and _refresh_guardrail_if_stale(root):
         print(f"Updated stale guardrail trigger: {WARN_NAME} (>5 threshold)")
     n = registry.sync(root)
@@ -101,9 +101,8 @@ def cmd_init(selector: Optional[str]) -> int:
     return 0
 
 
-def cmd_library_sync(source: Optional[str]) -> int:
+def cmd_fetch(source: Optional[str]) -> int:
     from . import library as lib
-    from .paths import local_library_dir
 
     try:
         dest = lib.sync_library(source)
@@ -112,14 +111,14 @@ def cmd_library_sync(source: Optional[str]) -> int:
         return 2
     remote = source or lib.default_remote()
     n = len(lib.list_entries(str(dest)))
-    print(f"Synced library → {dest}")
+    print(f"Synced store → {dest}")
     print(f"  source: {remote}")
     print(f"  entries: {n}")
-    print(f"  list: triggerctl library list")
+    print("  list: triggerctl list --store")
     return 0
 
 
-def cmd_library_list(source: Optional[str]) -> int:
+def cmd_list_store(source: Optional[str]) -> int:
     from . import library as lib
     from .paths import local_library_dir
 
@@ -131,11 +130,8 @@ def cmd_library_list(source: Optional[str]) -> int:
     if not entries:
         print("（库中无触发器）")
         return 0
-    if source:
-        label = source
-    else:
-        label = str(local_library_dir())
-    print(f"Library: {label}  ({len(entries)} trigger(s), not installed until you run library install)\n")
+    label = source or str(local_library_dir())
+    print(f"Store: {label}  ({len(entries)} available, not installed until you add --store)\n")
     rows = [
         [
             e.name,
@@ -147,11 +143,11 @@ def cmd_library_list(source: Optional[str]) -> int:
         for e in entries
     ]
     _print_table(rows, ["名称", "类型", "分组", "inject", "说明"])
-    print("\nInstall: triggerctl library install <name>   or   triggerctl library install --all")
+    print("\nInstall: triggerctl add <name> --store   or   triggerctl add --all --store")
     return 0
 
 
-def cmd_library_install(
+def cmd_add_store(
     names: List[str],
     selector: Optional[str],
     force: bool,
@@ -165,7 +161,7 @@ def cmd_library_install(
             result = lib.install_all(selector, force, source)
         else:
             if not names:
-                print("请指定触发器名称，或使用 --all", file=sys.stderr)
+                print("请指定触发器名称，或使用 add --all --store", file=sys.stderr)
                 return 2
             result = lib.install_names(names, selector, force, source)
     except Exception as e:  # noqa: BLE001
@@ -258,7 +254,7 @@ def cmd_validate(selector: Optional[str], probe_test: bool) -> int:
 
 
 def cmd_add(
-    name: Optional[str],
+    names: List[str],
     selector: Optional[str],
     category: Optional[str],
     every: Optional[str],
@@ -273,14 +269,26 @@ def cmd_add(
     locked: bool = False,
     source: Optional[str] = None,
     list_only: bool = False,
+    store: bool = False,
+    install_all: bool = False,
+    store_source: Optional[str] = None,
 ) -> int:
+    if isinstance(names, str):
+        names = [names] if names else []
     if source:
         return cmd_add_from(source, selector, category, force, list_only)
-    if not name:
-        print("错误：请提供触发器名称，或使用 --from <git/路径> 安装", file=sys.stderr)
+    if store or install_all:
+        return cmd_add_store(names, selector, force, install_all, store_source)
+    if not names:
+        print("错误：请提供触发器名称，或使用 --from <git/路径> / add --store", file=sys.stderr)
         return 2
+    if len(names) > 1:
+        print("错误：注册新触发器一次只能一个名称；从库安装请用 add NAME --store", file=sys.stderr)
+        return 2
+    name = names[0]
     if not every and not probe and not when:
         print("错误：至少要 --every（定时）、--probe（条件）或 --when（会话内语义条件）其一", file=sys.stderr)
+        print("  从库安装: triggerctl add <name> --store", file=sys.stderr)
         return 2
     root = primary(selector)
     folder = root.path / (f"{category}-triggers" if category else "")
@@ -373,7 +381,9 @@ def cmd_toggle(name: str, selector: Optional[str], enable: bool) -> int:
     return 0
 
 
-def cmd_list(selector: Optional[str]) -> int:
+def cmd_list(selector: Optional[str], store: bool = False, store_source: Optional[str] = None) -> int:
+    if store:
+        return cmd_list_store(store_source)
     roots = resolve(selector)
     rows = []
     for root in roots:

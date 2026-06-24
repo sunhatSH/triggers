@@ -98,13 +98,13 @@ triggerctl codex-hook                          # session JSON (Codex UserPromptS
 Install from Git or local paths (similar to `skills add`):
 
 ```bash
-triggerctl library sync
-triggerctl library list
-triggerctl library install rest-reminder auto-commit-push --root user
+triggerctl fetch
+triggerctl list --store
+triggerctl add rest-reminder auto-commit-push --store --root user
 
-# ad-hoc source (GitHub / URL / local), without syncing:
-triggerctl library list --source sunhatSH/trigger-library
-triggerctl library install rest-reminder --source /path/to/trigger-library
+# ad-hoc source (without fetch):
+triggerctl list --store --source sunhatSH/trigger-library
+triggerctl add rest-reminder --store --source /path/to/trigger-library
 
 # legacy:
 triggerctl add --from sunhatSH/trigger-library/session/rest-reminder.md --root user
