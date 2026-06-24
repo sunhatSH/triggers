@@ -1,6 +1,6 @@
 # triggerctl
 
-Triggers for Claude Code — run commands or prompts on a schedule, when a probe
+Triggers for Claude Code and Hermes Agent — run commands or prompts on a schedule, when a probe
 succeeds, or when a semantic session condition matches. Inspired by
 [vercel-labs/skills](https://github.com/vercel-labs/skills) (frontmatter as source
 of truth, generated index, multiple registry roots).
@@ -45,6 +45,14 @@ Add to `~/.claude/settings.json`:
 Strips prior trigger blocks from the session transcript before each injection.
 See [docs/proposals/user-prompt-submit-replacement-context.md](docs/proposals/user-prompt-submit-replacement-context.md).
 
+### Hermes Agent
+
+```bash
+triggerctl install --hermes-hook   # ~/.hermes/config.yaml → pre_llm_call
+```
+
+See [docs/hermes.md](docs/hermes.md).
+
 ## Context policy
 
 | Kind | Handler | In agent context? |
@@ -52,7 +60,7 @@ See [docs/proposals/user-prompt-submit-replacement-context.md](docs/proposals/us
 | time (`schedule`) | `triggerctl poll` | **No** |
 | event (`probe`) | `triggerctl poll` | **No** |
 | combo | `triggerctl poll` | **No** |
-| semantic session (`when` only) | UserPromptSubmit hook | **Yes** |
+| semantic session (`when` only) | UserPromptSubmit hook (Claude) / `pre_llm_call` (Hermes) | **Yes** |
 | `inject: false` | doctor / statusLine | **No** (rest → 🌙; >20 triggers → ⚠️ in status bar) |
 
 ## Docs
@@ -76,7 +84,9 @@ See [docs/proposals/user-prompt-submit-replacement-context.md](docs/proposals/us
 | `triggerctl list [--root all]` | List triggers |
 | `triggerctl sync` | Regenerate TRIGGERS.md ops index |
 | `triggerctl detect` / `poll` | Detection / execution |
-| `triggerctl install --hook` | UserPromptSubmit injection hook |
+| `triggerctl install --hook` | Claude Code UserPromptSubmit injection |
+| `triggerctl install --hermes-hook` | Hermes pre_llm_call injection |
+| `triggerctl hermes-hook` | Hermes hook entrypoint (JSON `context`) |
 | `triggerctl install --statusline` | Status bar |
 | `triggerctl install --loop` | Background poll loop |
 

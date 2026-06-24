@@ -306,10 +306,17 @@ def cmd_status(selector: Optional[str], limit: int) -> int:
 
 
 def cmd_hook() -> int:
-    """Print session-trigger context (UserPromptSubmit hook entrypoint)."""
+    """Print session-trigger context (Claude Code UserPromptSubmit hook entrypoint)."""
     from . import hook_runner
 
     return hook_runner.run_user_prompt_submit()
+
+
+def cmd_hermes_hook() -> int:
+    """Print session-trigger context (Hermes pre_llm_call shell hook entrypoint)."""
+    from . import hook_runner
+
+    return hook_runner.run_pre_llm_call()
 
 
 def cmd_statusline() -> int:
@@ -358,6 +365,18 @@ def _triggerctl_cmd() -> str:
     return shutil.which("triggerctl") or f"{sys.executable} -m triggerctl"
 
 
+def cmd_install_hermes_hook() -> int:
+    """Register triggerctl on Hermes pre_llm_call in ~/.hermes/config.yaml."""
+    from . import hermes
+
+    path = hermes.install_pre_llm_hook(_triggerctl_cmd())
+    print(f"Wrote Hermes pre_llm_call hook to {path}")
+    print(f"  command: {_triggerctl_cmd()} hermes-hook")
+    print("Note: approve the hook on first run, or set HERMES_ACCEPT_HOOKS=1 / hooks_auto_accept: true")
+    print("      Run `hermes hooks doctor` to verify.")
+    return 0
+
+
 def cmd_install_hook() -> int:
     """Merge a UserPromptSubmit hook into ~/.claude/settings.json."""
     import json
@@ -396,6 +415,8 @@ def cmd_install_hook() -> int:
 def cmd_install(selector: Optional[str], mode: str, interval: int) -> int:
     if mode == "hook":
         return cmd_install_hook()
+    if mode == "hermes-hook":
+        return cmd_install_hermes_hook()
     if mode == "statusline":
         return cmd_install_statusline()
     root = primary(selector)

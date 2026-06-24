@@ -43,6 +43,21 @@ def build_hook_output(block: str, *, replace_mode: bool) -> str:
     return json.dumps(payload, ensure_ascii=False)
 
 
+def build_hermes_output(block: str) -> str:
+    return json.dumps({"context": block}, ensure_ascii=False)
+
+
+def run_pre_llm_call(data: Dict[str, Any] | None = None) -> int:
+    """Emit session trigger context for Hermes pre_llm_call (JSON {\"context\": ...})."""
+    _ = data if data is not None else read_hook_input()
+    block = hookgen.session_context()
+    if not block:
+        print("{}")
+        return 0
+    print(build_hermes_output(block))
+    return 0
+
+
 def run_user_prompt_submit(data: Dict[str, Any] | None = None) -> int:
     """Emit session trigger context for the current user turn."""
     data = data if data is not None else read_hook_input()

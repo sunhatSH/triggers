@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "triggerctl"
 version = "0.1.0"
-description = "Triggers for Claude Code: register/list/detect/execute time- and condition-based triggers, with a cheap detection tier and a model execution tier."
+description = "Triggers for Claude Code and Hermes Agent: register/list/detect/execute time- and condition-based triggers."
 requires-python = ">=3.9"
 dependencies = ["PyYAML>=6.0"]
 

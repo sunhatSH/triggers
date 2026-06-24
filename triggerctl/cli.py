@@ -14,7 +14,10 @@ def _add_root_arg(p):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(prog="triggerctl", description="Triggers for Claude Code")
+    ap = argparse.ArgumentParser(
+        prog="triggerctl",
+        description="Triggers for Claude Code and Hermes Agent",
+    )
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("init", help="初始化一个注册根")
@@ -69,12 +72,14 @@ def build_parser() -> argparse.ArgumentParser:
     _add_root_arg(p)
     p.add_argument("--cron", action="store_true", help="打印 crontab 行")
     p.add_argument("--loop", action="store_true", help="生成 while+sleep 循环脚本")
-    p.add_argument("--hook", action="store_true", help="把 session 触发器注入 hook 写进 settings.json")
-    p.add_argument("--statusline", action="store_true", help="把状态栏脚本写进 settings.json（确定性显示提醒）")
+    p.add_argument("--hook", action="store_true", help="Claude Code UserPromptSubmit hook → settings.json")
+    p.add_argument("--hermes-hook", action="store_true", help="Hermes pre_llm_call hook → ~/.hermes/config.yaml")
+    p.add_argument("--statusline", action="store_true", help="Claude Code statusLine (rest / too-many warnings)")
     p.add_argument("--interval", type=int, default=60, help="循环间隔秒（默认 60）")
 
-    sub.add_parser("hook", help="输出 session 触发器上下文块（供 UserPromptSubmit hook 调用）")
-    sub.add_parser("statusline", help="输出状态栏文本（供 Claude Code statusLine 调用）")
+    sub.add_parser("hook", help="Session trigger block (Claude Code UserPromptSubmit)")
+    sub.add_parser("hermes-hook", help="Session trigger JSON (Hermes pre_llm_call)")
+    sub.add_parser("statusline", help="Status line text (Claude Code statusLine)")
 
     sub.add_parser("doctor", help="检查安装、hook、索引、轮询等是否正常")
 
@@ -147,11 +152,18 @@ def main(argv=None) -> int:
     if c == "poll":
         return _cmd_poll(args.root, args.dry_run)
     if c == "install":
-        mode = ("hook" if args.hook else "statusline" if args.statusline
-                else "cron" if args.cron else "loop")
+        mode = (
+            "hook" if args.hook
+            else "hermes-hook" if args.hermes_hook
+            else "statusline" if args.statusline
+            else "cron" if args.cron
+            else "loop"
+        )
         return commands.cmd_install(args.root, mode, args.interval)
     if c == "hook":
         return commands.cmd_hook()
+    if c == "hermes-hook":
+        return commands.cmd_hermes_hook()
     if c == "statusline":
         return commands.cmd_statusline()
     return 2

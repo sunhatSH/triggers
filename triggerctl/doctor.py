@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from . import registry
+from . import hermes as hermes_mod
 from .model import discover
 from .roots import Root, all_roots, project_root, user_root
 from .hookgen import TOO_MANY_THRESHOLD
@@ -112,13 +113,32 @@ def run(start: Optional[Path] = None) -> Report:
                 hook_ok = True
                 break
     if hook_ok:
-        rep.add("UserPromptSubmit hook", "ok", "semantic session triggers configured")
+        rep.add("Claude UserPromptSubmit hook", "ok", "semantic session triggers configured")
     else:
         rep.add(
-            "UserPromptSubmit hook",
+            "Claude UserPromptSubmit hook",
             "warn",
             "not configured → triggerctl install --hook",
         )
+
+    try:
+        _, hcfg = hermes_mod.load_config()
+        if hermes_mod.hook_installed(hcfg):
+            rep.add("Hermes pre_llm_call hook", "ok", f"configured in {hermes_mod.config_path()}")
+        elif shutil.which("hermes"):
+            rep.add(
+                "Hermes pre_llm_call hook",
+                "warn",
+                "Hermes found but hook missing → triggerctl install --hermes-hook",
+            )
+        else:
+            rep.add(
+                "Hermes pre_llm_call hook",
+                "info",
+                "optional → triggerctl install --hermes-hook (Hermes Agent)",
+            )
+    except Exception as exc:  # noqa: BLE001
+        rep.add("Hermes pre_llm_call hook", "warn", f"could not read Hermes config: {exc}")
 
     env = data.get("env") or {}
     if str(env.get("TRIGGERCTL_HOOK_REPLACE", "")).lower() in ("1", "true", "yes"):
