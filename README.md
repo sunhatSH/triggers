@@ -18,22 +18,21 @@ of truth, generated index, multiple registry roots).
   - User: `~/.claude/triggers/`
   - Project: `<project>/triggers/`
 - **Idempotency**: `.state/run-log.jsonl` keyed by `(name, key)`.
-- **Optional templates**: `catalog/` (`session/` + `poll/`); `init` seeds only the locked guardrail.
+- **Optional library**: separate [trigger-library](https://github.com/sunhatSH/trigger-library) repo; synced to `~/.local/share/triggerctl/library`. `init` only seeds the locked guardrail.
 - **>5 warning**: counts **hook-eligible** session triggers only (`in_context`), not time/event or `inject: false`.
 
 ## Project layout
 
 ```
-triggerctl/              # repo root (GitHub: sunhatSH/triggers)
+triggerctl/              # engine only (GitHub: sunhatSH/triggers)
 ├── triggerctl/          # Python package + CLI
-├── skill/               # agent skill (installed on setup)
-├── catalog/             # optional templates
-│   ├── session/         # semantic session (hook)
-│   └── poll/            # time / event / combo
-├── docs/                # design, integrations, proposals, admin
-├── tests/               # pytest; tests/manual/ for harnesses
-├── install.sh           # pip -e, init, hooks, skill
-└── bundled/ examples/   # redirect READMEs → catalog/
+├── skill/               # agent skill
+├── docs/ tests/ install.sh
+└── library/README.md    # pointer → separate trigger-library repo
+
+trigger-library/           # separate repo: sunhatSH/trigger-library
+├── manifest.yaml
+├── session/ poll/
 ```
 
 ## Install
@@ -42,6 +41,14 @@ triggerctl/              # repo root (GitHub: sunhatSH/triggers)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sunhatSH/triggers/main/install-remote.sh | bash
+```
+
+Then sync the optional trigger library (not auto-installed into your registry):
+
+```bash
+triggerctl fetch
+triggerctl list
+triggerctl add rest-reminder auto-commit-push --store
 ```
 
 Clones to `~/.local/share/triggerctl/repo` and runs `install.sh`. Options:
@@ -118,20 +125,22 @@ See [docs/integrations/codex.md](docs/integrations/codex.md).
 - [USAGE.md](USAGE.md) — usage and troubleshooting
 - [docs/README.md](docs/README.md) — documentation index
 - [docs/design.md](docs/design.md) — architecture
-- [catalog/README.md](catalog/README.md) — optional templates
+- [trigger-library](https://github.com/sunhatSH/trigger-library) — optional templates (separate repo)
 - [skill/SKILL.md](skill/SKILL.md) — agent skill
 
 ## Commands
 
 | Command | Purpose |
 |---|---|
+| `triggerctl fetch [--source SRC]` | Sync store → `~/.local/share/triggerctl/library` |
+| `triggerctl list [--root all]` | List installed + store templates (状态: 未安装/已启用/已关闭) |
+| `triggerctl add <name> --store` | Install from local store by name |
 | `triggerctl init [--root user\|project]` | Initialize registry root |
 | `triggerctl add <name> [--every \| --probe \| --when]` | Register trigger |
 | `triggerctl add --from <SOURCE> [--list]` | Install from Git/local |
 | `triggerctl update` | Update from lock file |
 | `triggerctl doctor` | Health check |
 | `triggerctl validate [--probe-test]` | Validate frontmatter |
-| `triggerctl list [--root all]` | List triggers |
 | `triggerctl sync` | Regenerate TRIGGERS.md ops index |
 | `triggerctl detect` / `poll` | Detection / execution |
 | `triggerctl install --hook` | Claude Code UserPromptSubmit injection |

@@ -1,8 +1,11 @@
 """Tests for install-from-source and lock file."""
+from pathlib import Path
+
 from triggerctl import commands, lockfile
 from triggerctl.model import discover, find
-from triggerctl.paths import catalog_dir
 from triggerctl.roots import Root
+
+FIXTURE_LIB = Path(__file__).resolve().parents[2] / "trigger-library"
 
 
 def _root(tmp_path):
@@ -14,7 +17,7 @@ def test_install_local_example(tmp_path, monkeypatch):
     from triggerctl import package
 
     monkeypatch.setattr(package, "primary", lambda sel: root)
-    repo = catalog_dir() / "poll" / "daily-backup.md"
+    repo = FIXTURE_LIB / "poll" / "daily-backup.md"
     rc = commands.cmd_add_from(str(repo), None, None, False, False)
     assert rc == 0
     t = find([root], "daily-backup")
@@ -29,7 +32,7 @@ def test_install_skip_without_force(tmp_path, monkeypatch):
     from triggerctl import package
 
     monkeypatch.setattr(package, "primary", lambda sel: root)
-    repo = catalog_dir() / "poll" / "daily-backup.md"
+    repo = FIXTURE_LIB / "poll" / "daily-backup.md"
     commands.cmd_add_from(str(repo), None, None, False, False)
     rc = commands.cmd_add_from(str(repo), None, None, False, False)
     assert rc == 0
@@ -39,8 +42,8 @@ def test_install_skip_without_force(tmp_path, monkeypatch):
 def test_list_from_local_dir(tmp_path):
     from triggerctl import package
 
-    poll = catalog_dir() / "poll"
+    poll = FIXTURE_LIB / "poll"
     files = package.list_available(str(poll))
     names = {f.name for f in files}
     assert "daily-backup" in names
-    assert "on-train-done" in names or "on-done" in names or len(names) >= 3
+    assert "on-train-done" in names or len(names) >= 3
